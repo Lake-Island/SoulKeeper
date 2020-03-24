@@ -13,21 +13,21 @@ killed_target = {
   location = ""
 }
 
--- Return player subzone and realzone as concatenated string
-function getPlayerZone()
-    local real_zone = GetRealZoneText()
-    local sub_zone = GetSubZoneText()
-    if sub_zone ~= real_zone and sub_zone ~= nil then
-      return subzone .. ", " .. real_zone
-    else
-      return real_zone
-    end
-end
-
 -- Reset kill data and drain soul start/end times
 function resetData()
     drain_soul    = { start_t = -1, end_t = -1 }
     killed_target = { time = -1 }
+end
+
+-- Return player subzone and realzone as concatenated string
+function getPlayerZone()
+    local real_zone = GetRealZoneText()
+    local sub_zone = GetSubZoneText()
+    if sub_zone ~= nil and sub_zone ~= real_zone and sub_zone ~= "" then
+      return sub_zone .. ", " .. real_zone
+    else
+      return real_zone
+    end
 end
 
 -- From the Combat Log save the targets details, time, and location of kill
@@ -35,14 +35,16 @@ combat_log_frame = CreateFrame("Frame")
 combat_log_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 combat_log_frame:SetScript("OnEvent", function(self,event)
   curr_time = GetTime()
-  local _, subevent, _, _, _, _, _, _, dest_name, dest_guid = CombatLogGetCurrentEventInfo()
-  local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
+  local _, subevent, _, _, _, _, _, dest_guid, dest_name = CombatLogGetCurrentEventInfo()
   if subevent == UNIT_DIED then 
     killed_target.time = curr_time
     killed_target.name = dest_name 
-    killed_target.race = race_name
-    killed_target.class = class_name
     killed_target.location = getPlayerZone()
+    if dest_guid ~= nil then
+      local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
+      killed_target.race = race_name
+      killed_target.class = class_name
+    end
   end
 end)
 
