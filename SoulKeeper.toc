@@ -1,5 +1,5 @@
 ## Interface: 11304
-## Title: Soul_Keeper
+## Title: SoulKeeper
 ## Author: Krel
 ## Version: 1.0
 
