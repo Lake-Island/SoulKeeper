@@ -1,17 +1,23 @@
 DRAIN_SOUL = "Drain Soul"
 UNIT_DIED = "UNIT_DIED"
 
-last_kill_time = -1
-drain_soul_end = -1
-drain_soul_start = -1
-killed_target_name = ""
-killed_target_location = ""
+drain_soul = { 
+  start_t = -1, 
+  end_t = -1 
+}
+killed_target = {
+  time = -1,
+  name = "",
+  race = "",
+  class = "",
+  location = ""
+}
 
 -- Return player subzone and realzone as concatenated string
 function getPlayerZone()
     local real_zone = GetRealZoneText()
     local sub_zone = GetSubZoneText()
-    if sub_zone ~= real_zone and sub_zone ~= "" then
+    if sub_zone ~= real_zone and sub_zone ~= nil then
       return subzone .. ", " .. real_zone
     else
       return real_zone
@@ -20,28 +26,23 @@ end
 
 -- Reset kill data and drain soul start/end times
 function resetData()
-    last_kill_time = -1
-    drain_soul_start = -1
-    drain_soul_end = -1
-    killed_target_name = ""
-    killed_target_location = ""
+    drain_soul    = { start_t = -1, end_t = -1 }
+    killed_target = { time = -1 }
 end
 
--- From the Combat Log save the name, time, and location enemy was killed
+-- From the Combat Log save the targets details, time, and location of kill
 combat_log_frame = CreateFrame("Frame")
 combat_log_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 combat_log_frame:SetScript("OnEvent", function(self,event)
   curr_time = GetTime()
-  local _, subevent, _, _, _, _, _, _, dest_name = CombatLogGetCurrentEventInfo()
+  local _, subevent, _, _, _, _, _, _, dest_name, dest_guid = CombatLogGetCurrentEventInfo()
+  local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
   if subevent == UNIT_DIED then 
-    last_kill_time = curr_time
-    killed_target_name = dest_name 
-    killed_target_location = getPlayerZone()
-    -- TODO: Does this work for ally?
-    -- TODO: Want to save ally race and class
-    print("KILL TIME : " .. last_kill_time)
-    print("name: " .. dest_name)
-    print("zone: " .. killed_target_location)
+    killed_target.time = curr_time
+    killed_target.name = dest_name 
+    killed_target.race = race_name
+    killed_target.class = class_name
+    killed_target.location = getPlayerZone()
   end
 end)
 
@@ -52,7 +53,7 @@ channel_start_frame:SetScript("OnEvent", function(self,event, ...)
   spell_name, _, _, start_time = ChannelInfo()  
   if spell_name == DRAIN_SOUL then 
     -- ChannelInfo() multiplies time by 1000, undo that.
-    drain_soul_start = start_time/1000
+    drain_soul.start_t = start_time/1000
   end
 end)
 
@@ -66,30 +67,28 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   spell_name = GetSpellInfo(spell_id)
 
   if spell_name == DRAIN_SOUL then 
-    drain_soul_end = curr_time
-    --[[ TODO: REMOVE ME!!!
-    print("Start: " .. drain_soul_start)
-    print("End: " .. drain_soul_end)
-    print("Kill: " .. last_kill_time)
-    --]]
+    drain_soul.end_t = curr_time
 
     -- kill time occured during drain soul; check to update shard
-    if ( last_kill_time >= drain_soul_start 
-         and last_kill_time <= drain_soul_end
-         and last_kill_time ~= -1 
-         and drain_soul_start ~= -1
-         and drain_soul_end ~= -1
+    if ( killed_target.time >= drain_soul.start_t 
+         and killed_target.time <= drain_soul.end_t
+         and killed_target.time ~= -1 
+         and drain_soul.start_t ~= -1
+         and drain_soul.end_t ~= -1
        ) then 
       --[[ TODO: 
-        0. Save name and location of enemy in combat_log_frame 
-          --> Save name and class if player
         1. Check if shard entered bag
-        2. Save name and location of killed enemy
+        2. Get killed target details
         3. Check next available back slot since last change (soul bag first) for a shard to update!
       --]]
       print("YOU TRAPPED A SOUL!!!!")  -- TODO: REMOVE ME!!!
-      print("Killed target name: " .. killed_target_name)
-      print("Location: " .. killed_target_location)
+      print("Name: " .. killed_target.name)
+      print("Location: " .. killed_target.location)
+      if killed_target.class ~= nil and killed_target.race ~= nil then 
+        print("Class: " .. killed_target.class)
+        print("Race: " .. killed_target.race)
+      end
+      
     else
       print("NO SOUL FOR YOU!!!!")     -- TODO: REMOVE ME!!!
     end
