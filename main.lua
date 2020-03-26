@@ -1,6 +1,7 @@
 SOUL_BAG = 3
 NORMAL_BAG = 0
 MAX_BAG_INDEX = 4
+SOUL_SHARD_ID = 6265
 DRAIN_SOUL = "Drain Soul"
 UNIT_DIED = "UNIT_DIED"
 
@@ -15,6 +16,8 @@ killed_target = {
   class = "",
   location = ""
 }
+next_open_slot = {}
+shard_added = false
 
 -- Reset kill data and drain soul start/end times
 function resetData()
@@ -36,7 +39,10 @@ end
 -- Find next available slot in bag for a soul shard.
 -- Return (bag_number, index) of next available slot in bag. 
 -- Soul bag gets priority, followed by regular bag, nil if no space.
-function findNextAvailBagSlot() 
+local item_frame = CreateFrame("Frame")
+item_frame:RegisterEvent("BAG_UPDATE")
+item_frame:SetScript("OnEvent",
+  function(self, event, ...)
     local open_soul_bag = {}
     local open_normal_bag = {}
     for bag_num = 0, MAX_BAG_INDEX, 1 do
@@ -55,14 +61,37 @@ function findNextAvailBagSlot()
       end
     end
 
-    if next(open_soul_bag) ~= nil then 
-      return open_soul_bag
-    elseif next(open_normal_bag) ~= nil then
-      return open_normal_bag
-    else
-      return nil
+    -- TODO: Helper function to map location (e.g. shard) to killer info
+    -- confirm shard added in previous bag location, then map killer info to last space (e.g. shard) 
+    if shard_added then
+      shard_added = false
+      local item_id = GetContainerItemID(next_open_slot['bag_number'], next_open_slot['open_index'])
+      if item_id == SOUL_SHARD_ID then
+        print(
+         "Soul shard added to bag : " .. 
+          next_open_slot['bag_number'] .. ", slot " .. next_open_slot['open_index']
+        )
+      end
     end
-end
+
+    if next(open_soul_bag) ~= nil then 
+      next_open_slot = open_soul_bag
+      --[[
+      print("Soul Bag")
+      print("Bag #: " .. next_open_slot['bag_number'])
+      print("Index #: " .. next_open_slot['open_index'])
+      --]]
+    elseif next(open_normal_bag) ~= nil then
+      next_open_slot = open_normal_bag
+      --[[
+      print("Regular Bag")
+      print("Bag #: " .. next_open_slot['bag_number'])
+      print("Index #: " .. next_open_slot['open_index'])
+      --]]
+    else
+      next_open_slot = {} 
+    end
+  end)
 
 -- From the Combat Log save the targets details, time, and location of kill
 local combat_log_frame = CreateFrame("Frame")
@@ -132,11 +161,16 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
       -- POSSIBLE BUG: Will the shard going into the bag trigger the BAG_UPDATE frame and change the space 
       -- before I check for the shard? This would result in a pointer to the next available space when it should 
       -- be pointing to the space the shard was placed in.
-      local next_avail = findNextAvailBagSlot()
-      if next_avail ~= nil then 
+      if next(next_open_slot) ~= nil then 
         print("Soul captured!") 
         print(killed_target.name .. ", " .. killed_target.location)
-        print("Stored in bag " .. next_avail['bag_number'] .. " slot " .. next_avail['open_index'] .. ".")
+        print("Storing in bag " .. next_open_slot['bag_number'] .. " slot " .. next_open_slot['open_index'] .. ".")
+        -- TODO: Need to check if a soul shard actually gets stored there, check ID? 
+        -- NOTE: Shard ID ... 6265
+       
+        -- TODO: its null... bag doesnt update w/ shard yet!
+        -- >>>>> set flag  so on next bag update it'll know since the last update a shard was addded!
+        shard_added = true
       else
         print("Bags full, cant store soul!")
       end
@@ -148,7 +182,6 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
     resetData()
   end
 end)
-
 
 -- TODO: WHAT ABOUT SHADOWBURN!!!!
 
