@@ -19,10 +19,16 @@ killed_target = {
 next_open_slot = {}
 shard_added = false
 
+-- TODO: Function that runs when soul shard spell is cast. (e.g. making a HS).
+
+-- Maps each bag to all indices containing soul shards
+shard_slots = { {}, {}, {}, {}, {} }
+
 -- Reset kill data and drain soul start/end times
+-- TODO: Try w/o resetting data for killed_target
 function resetData()
     drain_soul    = { start_t = -1, end_t = -1 }
-    killed_target = { time = -1 }
+    --killed_target = { time = -1 }
 end
 
 -- Return player subzone and realzone as concatenated string
@@ -34,6 +40,14 @@ function getPlayerZone()
     else
       return real_zone
     end
+end
+
+-- Create a deep copy of a table
+function deep_copy(obj)
+  if type(obj) ~= 'table' then return obj end
+    local res = {}
+      for k, v in pairs(obj) do res[deep_copy(k)] = deep_copy(v) end
+        return res
 end
 
 -- Find next available slot in bag for a soul shard.
@@ -61,36 +75,49 @@ item_frame:SetScript("OnEvent",
       end
     end
 
-    -- TODO: Helper function to map location (e.g. shard) to killer info
-    -- confirm shard added in previous bag location, then map killer info to last space (e.g. shard) 
+    -- Drain soul was successfully cast on killed target after last BAG_UPDATE
+    -- Check to see if shard was added to bag
     if shard_added then
       shard_added = false
+      -- TODO: Possibly check if item_id is null? This would be a bug but it would be good to catch.
       local item_id = GetContainerItemID(next_open_slot['bag_number'], next_open_slot['open_index'])
+
+      local bag_number = next_open_slot['bag_number']
+      local shard_index = next_open_slot['open_index']
       if item_id == SOUL_SHARD_ID then
         print(
          "Soul shard added to bag : " .. 
-          next_open_slot['bag_number'] .. ", slot " .. next_open_slot['open_index']
+          bag_number .. ", slot " .. shard_index
         )
+        -- save deep copy of table
+        -- NOTE: Bag numbers index from [0-4] but the shard_slots table is from [1-5]
+        shard_slots[bag_number+1][shard_index] = deep_copy(killed_target)
+        print("Name: " .. shard_slots[bag_number+1][shard_index].name)
+        print("Location: " .. shard_slots[bag_number+1][shard_index].location)
       end
     end
 
+    -- save bag/index that next shard will go into
     if next(open_soul_bag) ~= nil then 
       next_open_slot = open_soul_bag
-      --[[
-      print("Soul Bag")
-      print("Bag #: " .. next_open_slot['bag_number'])
-      print("Index #: " .. next_open_slot['open_index'])
-      --]]
     elseif next(open_normal_bag) ~= nil then
       next_open_slot = open_normal_bag
-      --[[
-      print("Regular Bag")
-      print("Bag #: " .. next_open_slot['bag_number'])
-      print("Index #: " .. next_open_slot['open_index'])
-      --]]
     else
       next_open_slot = {} 
     end
+    
+    -- TODO: REMOVE ME!!!!
+    -- Prints all slots in mapped to shards
+    for i=1, 5 do
+      for j=1, 16 do
+        if shard_slots[i][j] ~= nil then
+          print("Bag " .. i-1 .. " slot " .. j ..
+          "\nKilled " .. shard_slots[i][j].name
+          .. "\n Location: " .. shard_slots[i][j].location)
+        end
+      end
+     end
+    -- TODO: REMOVE ME!!!!
   end)
 
 -- From the Combat Log save the targets details, time, and location of kill
@@ -141,35 +168,18 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
          and drain_soul.start_t ~= -1
          and drain_soul.end_t ~= -1
        ) then 
-      --[[ TODO: 
-        1. Check if shard entered bag
-        2. Check next available back slot since last change (soul bag first) for a shard to update!
-      --]]
-      -- TODO: REMOVE ME!!!
-      -- Target details to save on shard
-      --print("Name: " .. killed_target.name)
-      --print("Location: " .. killed_target.location)
+       
       -- TODO: What to do with class/race?
+      -- TODO: Don't believe I need this here
       if killed_target.class ~= nil and killed_target.race ~= nil then 
         print("Class: " .. killed_target.class)
         print("Race: " .. killed_target.race)
       end
 
-      -- TODO: 
-      -- >> Move this to a frame on BAG_UPDATE, then under this comment check to see if shard was added 
-      -- in that available slot. 
-      -- POSSIBLE BUG: Will the shard going into the bag trigger the BAG_UPDATE frame and change the space 
-      -- before I check for the shard? This would result in a pointer to the next available space when it should 
-      -- be pointing to the space the shard was placed in.
+      -- check if there is space for newly captured  soul shard
       if next(next_open_slot) ~= nil then 
         print("Soul captured!") 
         print(killed_target.name .. ", " .. killed_target.location)
-        print("Storing in bag " .. next_open_slot['bag_number'] .. " slot " .. next_open_slot['open_index'] .. ".")
-        -- TODO: Need to check if a soul shard actually gets stored there, check ID? 
-        -- NOTE: Shard ID ... 6265
-       
-        -- TODO: its null... bag doesnt update w/ shard yet!
-        -- >>>>> set flag  so on next bag update it'll know since the last update a shard was addded!
         shard_added = true
       else
         print("Bags full, cant store soul!")
@@ -184,5 +194,7 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
 end)
 
 -- TODO: WHAT ABOUT SHADOWBURN!!!!
+-- TODO: Want to save details of soul shards on log out!
+-- TODO: On login need to check all existing soul shards to see if they have details, otherwise set details to nil
 
 -- END
