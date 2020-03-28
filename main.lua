@@ -1,34 +1,35 @@
+-- TODO: Move all constant data to .json
 SOUL_BAG = 3
 NORMAL_BAG = 0
 MAX_BAG_INDEX = 4
 SOUL_SHARD_ID = 6265
+UNIT_DIED  = "UNIT_DIED"
 DRAIN_SOUL = "Drain Soul"
-UNIT_DIED = "UNIT_DIED"
 
 drain_soul = { 
   start_t = -1, 
   end_t = -1 
 }
+
 killed_target = {
   time = -1,
   name = "",
   race = "",
   class = "",
   location = ""
+  -- TODO: Add level if alliance? 
 }
+
 next_open_slot = {}
 shard_added = false
 
--- TODO: Function that runs when soul shard spell is cast. (e.g. making a HS).
-
 -- Maps each bag to all indices containing soul shards
+-- TODO: Save these values between sessions
 shard_slots = { {}, {}, {}, {}, {} }
 
 -- Reset kill data and drain soul start/end times
--- TODO: Try w/o resetting data for killed_target
 function resetData()
     drain_soul    = { start_t = -1, end_t = -1 }
-    --killed_target = { time = -1 }
 end
 
 -- Return player subzone and realzone as concatenated string
@@ -48,6 +49,22 @@ function deep_copy(obj)
     local res = {}
       for k, v in pairs(obj) do res[deep_copy(k)] = deep_copy(v) end
         return res
+end
+
+-- Return the bag number and slot of next shard that will be consumed
+function findNextShard()
+  local next_shard = { bag = 666, index = 666 }
+  for bag_num, _ in ipairs(shard_slots) do 
+    for bag_index, _ in pairs(shard_slots[bag_num]) do
+      if bag_num <= next_shard.bag then
+        next_shard.bag = bag_num
+        if bag_index <= next_shard.index then
+          next_shard.index = bag_index
+        end
+      end
+    end
+  end
+  return next_shard
 end
 
 -- Find next available slot in bag for a soul shard.
@@ -81,7 +98,6 @@ item_frame:SetScript("OnEvent",
       shard_added = false
       -- TODO: Possibly check if item_id is null? This would be a bug but it would be good to catch.
       local item_id = GetContainerItemID(next_open_slot['bag_number'], next_open_slot['open_index'])
-
       local bag_number = next_open_slot['bag_number']
       local shard_index = next_open_slot['open_index']
       if item_id == SOUL_SHARD_ID then
@@ -105,19 +121,9 @@ item_frame:SetScript("OnEvent",
     else
       next_open_slot = {} 
     end
-    
-    -- TODO: REMOVE ME!!!!
-    -- Prints all slots in mapped to shards
-    for i=1, 5 do
-      for j=1, 16 do
-        if shard_slots[i][j] ~= nil then
-          print("Bag " .. i-1 .. " slot " .. j ..
-          "\nKilled " .. shard_slots[i][j].name
-          .. "\n Location: " .. shard_slots[i][j].location)
-        end
-      end
-     end
-    -- TODO: REMOVE ME!!!!
+
+    -- TODO: Remove me
+    print_shard_info()
   end)
 
 -- From the Combat Log save the targets details, time, and location of kill
@@ -176,25 +182,57 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
         print("Race: " .. killed_target.race)
       end
 
-      -- check if there is space for newly captured  soul shard
+      -- check if there is space for newly captured soul shard
       if next(next_open_slot) ~= nil then 
-        print("Soul captured!") 
-        print(killed_target.name .. ", " .. killed_target.location)
         shard_added = true
-      else
-        print("Bags full, cant store soul!")
       end
-      
-    else
-      -- Drain soul failed
     end
 
     resetData()
   end
 end)
 
+-- Check if shard consuming spell was successfully cast, display 
+-- associated information about shard.
+local cast_success_frame = CreateFrame("Frame")
+cast_success_frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+cast_success_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    local unit_target, cast_guid, spell_id = ...
+    local spell_name = GetSpellInfo(spell_id)
+    -- TODO: Will want to check for any skills that use a soul shard
+    if string.find(spell_name, "Create Healthstone") then
+      print("Successfully cast: " .. spell_name)
+      -- TODO: Need to know which shard is the next up to be used
+      -- >> Get next from shard_slots... 
+      -- TODO: Make note that a requirement for this addon is to have soul bags as last slots
+      next_shard = findNextShard()
+      print("Used shard at bag " .. next_shard.bag .. ", slot " .. next_shard.index)
+
+    end
+  end)
+
+
+
 -- TODO: WHAT ABOUT SHADOWBURN!!!!
 -- TODO: Want to save details of soul shards on log out!
 -- TODO: On login need to check all existing soul shards to see if they have details, otherwise set details to nil
+-- TODO: Remove requirement for soul bags to be all the way on RHS
+-- TODO: Add level of alliance soul you've saved
+-- TODO: Anytime bag is updated need to check if a shard was moved, if true update the mapping
+
+-- TODO: REMOVE ME!!!!
+-- Prints all slots in mapped to shards
+function print_shard_info() 
+  for i=1, 5 do
+    for j=1, 16 do
+      if shard_slots[i][j] ~= nil then
+        print("Bag " .. i-1 .. " slot " .. j ..
+       "\nKilled " .. shard_slots[i][j].name
+        .. "\n Location: " .. shard_slots[i][j].location)
+      end
+    end
+  end
+end
 
 -- END
