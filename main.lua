@@ -1,39 +1,4 @@
-SOUL_BAG = 3
-NORMAL_BAG = 0
-SLOT_NULL  = 666
-MAX_BAG_INDEX = 4
-SOUL_SHARD_ID = 6265
-UNIT_DIED  = "UNIT_DIED"
-DRAIN_SOUL = "Drain Soul"
-SPELL_NAMES = {
-  -- TODO: List spells that consume shards
-  HS = "Create Healthstone",
-  SS = "Create Soulstone"
-}
-
--- TODO: MOVE ALL THIS TO CONFIG FILE!!!
-STONE_NAME = {}
--- HS
-STONE_NAME["Create Healthstone (Minor)"] = "Minor Healthstone"
-STONE_NAME["Create Healthstone (Lesser)"] = "Lesser Healthstone"
-STONE_NAME["Create Healthstone"] = "Healthstone"
-STONE_NAME["Create Healthstone (Greater)"] = "Greater Healthstone"
-STONE_NAME["Create Healthstone (Major)"] = "Major Healthstone"
--- SS
-STONE_NAME["Create Soulstone (Minor)"] = "Minor Soulstone"
-STONE_NAME["Create Soulstone (Lesser)"] = "Lesser Soulstone"
-STONE_NAME["Create Soulstone"] = "Soulstone"
-STONE_NAME["Create Soulstone (Greater)"] = "Greater Soulstone"
-STONE_NAME["Create Soulstone (Major)"] = "Major Soulstone"
--- Spellstone
-STONE_NAME["Create Spellstone"] = "Spellstone"
-STONE_NAME["Create Spellstone (Greater)"] = "Greater Spellstone"
-STONE_NAME["Create Spellstone (Major)"] = "Major Spellstone"
--- Firestone
-STONE_NAME["Create Firestone (Lesser)"] = "Lesser Firestone"
-STONE_NAME["Create Firestone"] = "Firestone"
-STONE_NAME["Create Firestone (Greater)"] = "Greater Firestone"
-STONE_NAME["Create Firestone (Major)"] = "Major Firestone"
+local _, core = ...
 
 -- Map all created Healthstones and Soulstones to shard info
 -- TODO: Need to save this between sessions, then check on login
@@ -77,28 +42,9 @@ function resetData()
     drain_soul    = { start_t = -1, end_t = -1 }
 end
 
--- Return player subzone and realzone as concatenated string
-function getPlayerZone()
-    local real_zone = GetRealZoneText()
-    local sub_zone = GetSubZoneText()
-    if sub_zone ~= nil and sub_zone ~= real_zone and sub_zone ~= "" then
-      return sub_zone .. ", " .. real_zone
-    else
-      return real_zone
-    end
-end
-
--- Create a deep copy of a table
-function deep_copy(obj)
-  if type(obj) ~= 'table' then return obj end
-    local res = {}
-      for k, v in pairs(obj) do res[deep_copy(k)] = deep_copy(v) end
-        return res
-end
-
 -- Return the bag number and slot of next shard that will be consumed
 function findNextShard()
-  local next_shard = { bag = SLOT_NULL, index = SLOT_NULL }
+  local next_shard = { bag = core.SLOT_NULL, index = core.SLOT_NULL }
   for bag_num, _ in ipairs(shard_slots) do 
     for bag_index, _ in pairs(shard_slots[bag_num]) do
       if bag_num <= next_shard.bag then
@@ -122,16 +68,16 @@ item_frame:SetScript("OnEvent",
   function(self, event, ...)
     local open_soul_bag = {}
     local open_normal_bag = {}
-    for bag_num = 0, MAX_BAG_INDEX, 1 do
+    for bag_num = 0, core.MAX_BAG_INDEX, 1 do
       local num_free_slots, bag_type = GetContainerNumFreeSlots(bag_num);
       if num_free_slots > 0 then
         -- get indices of all free slots
         local free_slots = GetContainerFreeSlots(bag_num)
         -- save bag number and index if not yet found for bag type
-        if bag_type == SOUL_BAG and next(open_soul_bag) == nil then
+        if bag_type == core.SOUL_BAG and next(open_soul_bag) == nil then
           open_soul_bag['bag_number'] = bag_num
           open_soul_bag['open_index'] = free_slots[1]
-        elseif bag_type == NORMAL_BAG and next(open_normal_bag) == nil then
+        elseif bag_type == core.NORMAL_BAG and next(open_normal_bag) == nil then
           open_normal_bag['bag_number'] = bag_num
           open_normal_bag['open_index'] = free_slots[1]
         end
@@ -145,14 +91,14 @@ item_frame:SetScript("OnEvent",
       local item_id = GetContainerItemID(next_open_slot['bag_number'], next_open_slot['open_index'])
       local bag_number = next_open_slot['bag_number']
       local shard_index = next_open_slot['open_index']
-      if item_id == SOUL_SHARD_ID then
+      if item_id == core.SOUL_SHARD_ID then
         print(
          "Soul shard added to bag : " .. 
           bag_number .. ", slot " .. shard_index
         )
         -- save deep copy of table
         -- NOTE: Bag numbers index from [0-4] but the shard_slots table is from [1-5]
-        shard_slots[bag_number+1][shard_index] = deep_copy(killed_target)
+        shard_slots[bag_number+1][shard_index] = core.deep_copy(killed_target)
         print("Name: " .. shard_slots[bag_number+1][shard_index].name)
         print("Location: " .. shard_slots[bag_number+1][shard_index].location)
       end
@@ -177,10 +123,10 @@ combat_log_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 combat_log_frame:SetScript("OnEvent", function(self,event)
   local curr_time = GetTime()
   local _, subevent, _, _, _, _, _, dest_guid, dest_name = CombatLogGetCurrentEventInfo()
-  if subevent == UNIT_DIED then 
+  if subevent == core.UNIT_DIED then 
     killed_target.time = curr_time
     killed_target.name = dest_name 
-    killed_target.location = getPlayerZone()
+    killed_target.location = core.getPlayerZone()
     if dest_guid ~= nil then
       local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
       killed_target.race = race_name
@@ -194,7 +140,7 @@ local channel_start_frame = CreateFrame("Frame")
 channel_start_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 channel_start_frame:SetScript("OnEvent", function(self,event, ...)
   local spell_name, _, _, start_time = ChannelInfo()  
-  if spell_name == DRAIN_SOUL then 
+  if spell_name == core.DRAIN_SOUL then 
     -- ChannelInfo() multiplies time by 1000, undo that.
     drain_soul.start_t = start_time/1000
   end
@@ -209,7 +155,7 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   local curr_time = GetTime()  
   local spell_name = GetSpellInfo(spell_id)
 
-  if spell_name == DRAIN_SOUL then 
+  if spell_name == core.DRAIN_SOUL then 
     drain_soul.end_t = curr_time
 
     -- kill time occured during drain soul; check to update shard
@@ -240,10 +186,10 @@ cast_success_frame:SetScript("OnEvent",
     local spell_name = GetSpellInfo(spell_id)
     -- TODO: Make a helper function that checks if skill was any that 
     -- consumes a shard, should return a boolean
-    if string.find(spell_name, SPELL_NAMES.HS) or 
-       string.find(spell_name, SPELL_NAMES.SS) then
+    if string.find(spell_name, core.SPELL_NAMES.HS) or 
+       string.find(spell_name, core.SPELL_NAMES.SS) then
       next_shard = findNextShard()
-      if next_shard.bag ~= SLOT_NULL then   -- prevents duplicate executions
+      if next_shard.bag ~= core.SLOT_NULL then   -- prevents duplicate executions
         local shard_info = shard_slots[next_shard.bag][next_shard.index]
 
         -- XXX: REMOVE ME
@@ -261,15 +207,15 @@ cast_success_frame:SetScript("OnEvent",
         SendChatMessage(mssg, "WHISPER", 1, "Krel")
         
         -- Map created SS and HS to killed player info. 
-        if string.find(spell_name, SPELL_NAMES.HS) then
+        if string.find(spell_name, core.SPELL_NAMES.HS) then
           --- XXX: TODO: This should run when I create a HS
           print("H1 - - - - - - ")
-          created_hs[STONE_NAME[spell_name]] = shard_info
+          created_hs[core.STONE_NAME[spell_name]] = shard_info
           -- TODO: Now when you consume/trade the HS print the corresponding info
           -- ----> Then nullify the entry in the mapping
           -- ----> This mapping must be cleared after logging out for 15min 
           -- ----> MUST CHECK INVENTORY ON LOGIN TO MAKE SURE MAPPING STILL EXISTS
-        elseif string.find(spell_name, SPELL_NAMES.SS) then
+        elseif string.find(spell_name, core.SPELL_NAMES.SS) then
           -- TODO: Figure out how to map created SS to shard_info
         end
       end
@@ -293,7 +239,7 @@ bag_slot_lock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag_id, slot_id = ...
     local item_id = GetContainerItemID(bag_id, slot_id)
-    if item_id == SOUL_SHARD_ID then
+    if item_id == core.SOUL_SHARD_ID then
       print("Removing shard from map!")
       print("From [" .. bag_id .. ", " .. slot_id .. "]")
 
@@ -315,7 +261,7 @@ bag_slot_unlock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag_id, slot_id = ...
     local item_id = GetContainerItemID(bag_id, slot_id)
-    if item_id == SOUL_SHARD_ID then
+    if item_id == core.SOUL_SHARD_ID then
       print("Adding shard to map!")
       print("To [" .. bag_id .. ", " .. slot_id .. "]")
 
