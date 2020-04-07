@@ -1,6 +1,7 @@
 ## Interface: 11304
 ## Title: SoulKeeper
 ## Author: Krel
-## Version: 1.0
+## Version: 0.1
 
+core.lua
 main.lua

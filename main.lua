@@ -1,10 +1,46 @@
--- TODO: Move all constant data to .json
 SOUL_BAG = 3
 NORMAL_BAG = 0
+SLOT_NULL  = 666
 MAX_BAG_INDEX = 4
 SOUL_SHARD_ID = 6265
 UNIT_DIED  = "UNIT_DIED"
 DRAIN_SOUL = "Drain Soul"
+SPELL_NAMES = {
+  -- TODO: List spells that consume shards
+  HS = "Create Healthstone",
+  SS = "Create Soulstone"
+}
+
+-- TODO: MOVE ALL THIS TO CONFIG FILE!!!
+STONE_NAME = {}
+-- HS
+STONE_NAME["Create Healthstone (Minor)"] = "Minor Healthstone"
+STONE_NAME["Create Healthstone (Lesser)"] = "Lesser Healthstone"
+STONE_NAME["Create Healthstone"] = "Healthstone"
+STONE_NAME["Create Healthstone (Greater)"] = "Greater Healthstone"
+STONE_NAME["Create Healthstone (Major)"] = "Major Healthstone"
+-- SS
+STONE_NAME["Create Soulstone (Minor)"] = "Minor Soulstone"
+STONE_NAME["Create Soulstone (Lesser)"] = "Lesser Soulstone"
+STONE_NAME["Create Soulstone"] = "Soulstone"
+STONE_NAME["Create Soulstone (Greater)"] = "Greater Soulstone"
+STONE_NAME["Create Soulstone (Major)"] = "Major Soulstone"
+-- Spellstone
+STONE_NAME["Create Spellstone"] = "Spellstone"
+STONE_NAME["Create Spellstone (Greater)"] = "Greater Spellstone"
+STONE_NAME["Create Spellstone (Major)"] = "Major Spellstone"
+-- Firestone
+STONE_NAME["Create Firestone (Lesser)"] = "Lesser Firestone"
+STONE_NAME["Create Firestone"] = "Firestone"
+STONE_NAME["Create Firestone (Greater)"] = "Greater Firestone"
+STONE_NAME["Create Firestone (Major)"] = "Major Firestone"
+
+-- Map all created Healthstones and Soulstones to shard info
+-- TODO: Need to save this between sessions, then check on login
+-- if the HS/SS is still in the bag, if so leave it otherwise
+-- reset these tables
+created_hs = {}
+created_ss = {}
 
 drain_soul = { 
   start_t = -1, 
@@ -26,6 +62,15 @@ shard_added = false
 -- Maps each bag to all indices containing soul shards
 -- TODO: Save these values between sessions
 shard_slots = { {}, {}, {}, {}, {} }
+
+-- data of shard selected from bag
+-- XXX: When two existing shard slots are swapped the order is 
+--       they are both locked before unlocked. Need to cache
+--       data for both.
+locked_shard_data = {
+  last = nil,
+  first = nil,
+}
 
 -- Reset kill data and drain soul start/end times
 function resetData()
@@ -53,7 +98,7 @@ end
 
 -- Return the bag number and slot of next shard that will be consumed
 function findNextShard()
-  local next_shard = { bag = 666, index = 666 }
+  local next_shard = { bag = SLOT_NULL, index = SLOT_NULL }
   for bag_num, _ in ipairs(shard_slots) do 
     for bag_index, _ in pairs(shard_slots[bag_num]) do
       if bag_num <= next_shard.bag then
@@ -64,6 +109,7 @@ function findNextShard()
       end
     end
   end
+  next_shard.bag = next_shard.bag
   return next_shard
 end
 
@@ -96,7 +142,6 @@ item_frame:SetScript("OnEvent",
     -- Check to see if shard was added to bag
     if shard_added then
       shard_added = false
-      -- TODO: Possibly check if item_id is null? This would be a bug but it would be good to catch.
       local item_id = GetContainerItemID(next_open_slot['bag_number'], next_open_slot['open_index'])
       local bag_number = next_open_slot['bag_number']
       local shard_index = next_open_slot['open_index']
@@ -123,7 +168,7 @@ item_frame:SetScript("OnEvent",
     end
 
     -- TODO: Remove me
-    print_shard_info()
+    --print_shard_info()
   end)
 
 -- From the Combat Log save the targets details, time, and location of kill
@@ -175,13 +220,6 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
          and drain_soul.end_t ~= -1
        ) then 
        
-      -- TODO: What to do with class/race?
-      -- TODO: Don't believe I need this here
-      if killed_target.class ~= nil and killed_target.race ~= nil then 
-        print("Class: " .. killed_target.class)
-        print("Race: " .. killed_target.race)
-      end
-
       -- check if there is space for newly captured soul shard
       if next(next_open_slot) ~= nil then 
         shard_added = true
@@ -200,26 +238,150 @@ cast_success_frame:SetScript("OnEvent",
   function(self,event,...)
     local unit_target, cast_guid, spell_id = ...
     local spell_name = GetSpellInfo(spell_id)
-    -- TODO: Will want to check for any skills that use a soul shard
-    if string.find(spell_name, "Create Healthstone") then
-      print("Successfully cast: " .. spell_name)
-      -- TODO: Need to know which shard is the next up to be used
-      -- >> Get next from shard_slots... 
-      -- TODO: Make note that a requirement for this addon is to have soul bags as last slots
+    -- TODO: Make a helper function that checks if skill was any that 
+    -- consumes a shard, should return a boolean
+    if string.find(spell_name, SPELL_NAMES.HS) or 
+       string.find(spell_name, SPELL_NAMES.SS) then
       next_shard = findNextShard()
-      print("Used shard at bag " .. next_shard.bag .. ", slot " .. next_shard.index)
+      if next_shard.bag ~= SLOT_NULL then   -- prevents duplicate executions
+        local shard_info = shard_slots[next_shard.bag][next_shard.index]
 
+        -- XXX: REMOVE ME
+        print("Successfully cast: " .. spell_name)
+        print("Soul of '" .. shard_info.name .. "'")
+        print("Location: " .. shard_info.location)
+  
+        -- remove shard from mapping
+        shard_slots[next_shard.bag][next_shard.index] = nil
+
+        -- TODO: 'SAY' MUST be on hardware press (e.g. mouse click)
+        -- ----> Possibly on trade for HS/ how for SS? other skills? er...
+        -- ----> I remember /say working in strath w/ jiinx, clouds when I created a HS
+        mssg = spell_name .. " with the soul of " .. shard_info.name .. "!"
+        SendChatMessage(mssg, "WHISPER", 1, "Krel")
+        
+        -- Map created SS and HS to killed player info. 
+        if string.find(spell_name, SPELL_NAMES.HS) then
+          --- XXX: TODO: This should run when I create a HS
+          print("H1 - - - - - - ")
+          created_hs[STONE_NAME[spell_name]] = shard_info
+          -- TODO: Now when you consume/trade the HS print the corresponding info
+          -- ----> Then nullify the entry in the mapping
+          -- ----> This mapping must be cleared after logging out for 15min 
+          -- ----> MUST CHECK INVENTORY ON LOGIN TO MAKE SURE MAPPING STILL EXISTS
+        elseif string.find(spell_name, SPELL_NAMES.SS) then
+          -- TODO: Figure out how to map created SS to shard_info
+        end
+      end
+    -- Consume HS (non spell cast)
+    elseif string.find(spell_name, "Healthstone") then
+      print("H2 - - - - - -")
+      local hs_info = created_hs[spell_name]
+      if hs_info ~= nil then  -- runs multiple extra times
+        print("Successfully cast: " .. spell_name)
+        print("Soul of '" .. hs_info.name .. "'")
+        print("Location: " .. hs_info.location)
+      end
+    end
+  end)
+  
+-- Check if item selected from bag is a soul shard, 
+-- if true remove existing mapping.
+local bag_slot_lock_frame = CreateFrame("Frame")
+bag_slot_lock_frame:RegisterEvent("ITEM_LOCKED")
+bag_slot_lock_frame:SetScript("OnEvent",
+  function(self, event, ...)
+    local bag_id, slot_id = ...
+    local item_id = GetContainerItemID(bag_id, slot_id)
+    if item_id == SOUL_SHARD_ID then
+      print("Removing shard from map!")
+      print("From [" .. bag_id .. ", " .. slot_id .. "]")
+
+      -- save data, remove from map 
+      if locked_shard_data.first == nil then
+        locked_shard_data.first = shard_slots[bag_id+1][slot_id]
+      else
+        locked_shard_data.last = shard_slots[bag_id+1][slot_id]
+      end
+      shard_slots[bag_id+1][slot_id] = nil
     end
   end)
 
+-- Check if item inserted into bag is a soul shard,
+-- if true add new mapping.
+local bag_slot_unlock_frame = CreateFrame("Frame")
+bag_slot_unlock_frame:RegisterEvent("ITEM_UNLOCKED")
+bag_slot_unlock_frame:SetScript("OnEvent",
+  function(self, event, ...)
+    local bag_id, slot_id = ...
+    local item_id = GetContainerItemID(bag_id, slot_id)
+    if item_id == SOUL_SHARD_ID then
+      print("Adding shard to map!")
+      print("To [" .. bag_id .. ", " .. slot_id .. "]")
 
+      if locked_shard_data.first == nil then
+        shard_slots[bag_id+1][slot_id] = locked_shard_data.last
+        locked_shard_data.last = nil
+      else
+        shard_slots[bag_id+1][slot_id] = locked_shard_data.first
+        locked_shard_data.first = nil
+      end
+    end
+  end)
 
--- TODO: WHAT ABOUT SHADOWBURN!!!!
+-- 1. Map newly created SS/HS to corresponding kill details 
+-- ---> TODO: Test spellstones/firestones, when consumed what's the spell called?
+--
+-- 2. On use of SS/trade of HS announce whose soul it was in '/say'
+-- ---> How will I know what bag item was used? 
+--
+-- 3. What if shard/HS/SS is destroyed? 
+-- --> Need to remove mapping!  
+-- --> Possibly write a message saying 'throwing away worthless soul of enemy_name'
+--
+-- 4. Testing
+-- ---> TODO: After logging out for 15min HS/SS will disappear... Need to check on login 
+-- ----> if its still there.. iterate through all bags looking for matching healthstones? 
+-- ****** Basically if I find one then dont delete them, if i dont find any then reset the table
+--
+-- 4. Save details of soul shard on logout 
+--    4.b. On login make sure to check all bag slots and mark un-mapped shards as nil
+--    ---> If shard nil, player will announce it was made from a unkown soul
+-- 5. Look into adding other skills
+--
+-- 6. Add options for user customization
+
+-- TODO: Think about how I plan to design this. How much can the user choose? 
+-- What exactly do I want to accomplish right now? What can I add later? How can I develop 
+-- it so its easy to add onto later? 
+
+-- TODO: When SS/HS is created, map space in bag to info... 
+-- --> When player consumed/trades HS or uses SS will display message
+
+-- TODO: Do I want to message self saying whose soul I used to create HS/SS or should I make an announcement 
+-- when I trade a HS or soul stone somebody?
+-- >>>> Skills like shadowburn can whisper to you whose soul you used? 
+
 -- TODO: Want to save details of soul shards on log out!
+
+-- TODO: What if you destroy a shard?
+--      >> Related event: 'DELETE_ITEM_CONFIRM'
+
+-- TODO: Shadowburn, pets, other skills
+
+-- TODO: Move all constant data to a json 
+
 -- TODO: On login need to check all existing soul shards to see if they have details, otherwise set details to nil
+
 -- TODO: Remove requirement for soul bags to be all the way on RHS
+
 -- TODO: Add level of alliance soul you've saved
--- TODO: Anytime bag is updated need to check if a shard was moved, if true update the mapping
+
+-- TODO: Throw in soul stone reminder... e.g. when cooldown is up!
+
+-- TODO: User has option to choose which spells to display mesasge for. User can also input 
+--       their own custom message per spell/consumption?
+--       >> Add options to determine when to announce, where to announce, etc...
 
 -- TODO: REMOVE ME!!!!
 -- Prints all slots in mapped to shards
@@ -234,5 +396,71 @@ function print_shard_info()
     end
   end
 end
+-- TODO: REMOVE ME!!!!
+
+
+-- TODO: REMOVE ME
+--[[
+local target_info_frame = CreateFrame("Frame")
+target_info_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
+target_info_frame:SetScript("OnEvent",
+  function(self, event, ...)
+        --spell_name = "TEST_SPELL"
+        --soul_name = "TEST_SOUL"
+        --mssg = "Cast " .. spell_name .. " with the soul of " .. soul_name .. "!"
+        SendChatMessage("TEST STRING", "SAY")
+        --SendChatMessage("TEST STRING", "WHISPER", 1, "Krel")
+  end)
+--]]
+-- TODO: REMOVE ME!!!!
+
+--[[
+local bag_lock_frame = CreateFrame("Frame")
+target_info_frame:RegisterEvent("ITEM_LOCK_CHANGED")
+target_info_frame:SetScript("OnEvent",
+  function(self, event, ...)
+    local bag_id, slot_id = ...
+    print("Bag: " .. bag_id ", slot: " .. slot_id)
+    -- TODO:
+    -- On successful spellcast it'll say 'first aid', but how can 
+    -- I get the name of the item in the slot... e.g. wool bandage or w/e?
+    -- What happens if its a healthstone, does that count as a successful spellcast?
+  end)
+--]]
+-- TODO: Fire event when bag item is used... would use this for 
+-- healthstone/SS
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 -- END
