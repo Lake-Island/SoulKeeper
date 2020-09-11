@@ -59,8 +59,7 @@ function findNextShard()
   return next_shard
 end
 
--- Find next available slot in bag for a soul shard.
--- Return (bag_number, index) of next available slot in bag. 
+-- Find next available slot in bag shard will appear. 
 -- Soul bag gets priority, followed by regular bag, nil if no space.
 local item_frame = CreateFrame("Frame")
 item_frame:RegisterEvent("BAG_UPDATE")
