@@ -32,6 +32,59 @@ function resetData()
     drain_soul = { start_t = -1, end_t = -1 }
 end
 
+--[[ Return the bag number and slot of next shard that will be consumed --]]
+function findNextShard()
+  local next_shard = { bag = core.SLOT_NULL, index = core.SLOT_NULL }
+  for bag_num, _ in ipairs(shard_mapping) do 
+    for bag_index, _ in pairs(shard_mapping[bag_num]) do
+      if bag_num <= next_shard.bag then
+        next_shard.bag = bag_num
+        if bag_index <= next_shard.index then
+          next_shard.index = bag_index
+        end
+      end
+    end
+  end
+  next_shard.bag = next_shard.bag
+  return next_shard
+end
+
+--[[
+  Set next_open_slot variable to contain the bag_number and index of the 
+  next open bag slot. Only soulbags and regular bags considered, soul bags
+  get priority order.
+--]]
+function update_next_open_bag_slot()
+    local open_soul_bag = {}
+    local open_normal_bag = {}
+    for bag_num = 0, core.MAX_BAG_INDEX, 1 do
+      -- get number of free slots in bag and its type
+      local num_free_slots, bag_type = GetContainerNumFreeSlots(bag_num);
+      if num_free_slots > 0 then
+        local free_slots = GetContainerFreeSlots(bag_num)
+
+        -- save bag number and first open index if not yet found for bag type
+        if bag_type == core.SOUL_BAG_TYPE and next(open_soul_bag) == nil then
+          open_soul_bag['bag_number'] = bag_num
+          open_soul_bag['open_index'] = free_slots[1]
+        elseif bag_type == core.NORMAL_BAG_TYPE and next(open_normal_bag) == nil then
+          open_normal_bag['bag_number'] = bag_num
+          open_normal_bag['open_index'] = free_slots[1]
+        end
+      end
+    end
+
+    -- set next_open_slot to corresopnding bag/index
+    if next(open_soul_bag) ~= nil then 
+      next_open_slot = open_soul_bag
+    elseif next(open_normal_bag) ~= nil then
+      next_open_slot = open_normal_bag
+    else
+      next_open_slot = {} 
+    end
+end
+
+
 --[[ From the Combat Log save the targets details, time, and location of kill --]]
 local combat_log_frame = CreateFrame("Frame")
 combat_log_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
@@ -195,43 +248,43 @@ bag_slot_unlock_frame:SetScript("OnEvent",
   end)
 
 
-
-
-
---[[
-  Set next_open_slot variable to contain the bag_number and index of the 
-  next open bag slot. Only soulbags and regular bags considered, soul bags
-  get priority order.
+--[[ 
+  On game start/reload, iterate over all bag slots and map any unmapped soul shards. 
+  Values set to default (<MISSING DATA>).
 --]]
-function update_next_open_bag_slot()
-    local open_soul_bag = {}
-    local open_normal_bag = {}
+local reload_frame = CreateFrame("Frame")
+reload_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
+reload_frame:SetScript("OnEvent", 
+  function(self,event,...)
     for bag_num = 0, core.MAX_BAG_INDEX, 1 do
-      -- get number of free slots in bag and its type
-      local num_free_slots, bag_type = GetContainerNumFreeSlots(bag_num);
-      if num_free_slots > 0 then
-        local free_slots = GetContainerFreeSlots(bag_num)
-
-        -- save bag number and first open index if not yet found for bag type
-        if bag_type == core.SOUL_BAG_TYPE and next(open_soul_bag) == nil then
-          open_soul_bag['bag_number'] = bag_num
-          open_soul_bag['open_index'] = free_slots[1]
-        elseif bag_type == core.NORMAL_BAG_TYPE and next(open_normal_bag) == nil then
-          open_normal_bag['bag_number'] = bag_num
-          open_normal_bag['open_index'] = free_slots[1]
+      num_bag_slots = GetContainerNumSlots(bag_num)
+      for slot_num = 1, num_bag_slots, 1 do
+        curr_item_id = GetContainerItemID(bag_num, slot_num)
+        curr_shard_slot = shard_mapping[bag_num+1][slot_num]
+        -- unmapped soul shard; map it.
+        if ( (curr_item_id == core.SOUL_SHARD_ID) and (curr_shard_slot == nil) ) then
+          shard_mapping[bag_num+1][slot_num] = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
         end
       end
-    end
+    end 
+  end)
 
-    -- set next_open_slot to corresopnding bag/index
-    if next(open_soul_bag) ~= nil then 
-      next_open_slot = open_soul_bag
-    elseif next(open_normal_bag) ~= nil then
-      next_open_slot = open_normal_bag
-    else
-      next_open_slot = {} 
-    end
-end
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function print_shard_info() 
   for i=1, 5 do
@@ -239,7 +292,7 @@ function print_shard_info()
       if shard_mapping[i][j] ~= nil then
         print("Bag " .. i-1 .. " slot " .. j ..
        "\nKilled " .. shard_mapping[i][j].name
-        .. "\n Location: " .. shard_mapping[i][j].location)
+        .. "\n Location: " .. shard_mapping[i][j].location .. "\n - - - - - -") 
       end
     end
   end
@@ -249,7 +302,8 @@ end
 
 
 
-
+-- TODO: Handle if player destroys a shard
+-- TODO: Reset data option
 
 
 
@@ -264,6 +318,9 @@ target_info_frame:SetScript("OnEvent",
     shard_mapping[2][1] = { name = 'x' }
     shard_mapping[2][2] = { name = 'y' }
     shard_mapping[2][3] = { name = 'z' }
+    next_shard = findNextShard()
+    print("Next shard bag: " .. next_shard.bag)
+    print("Next shard index: " .. next_shard.index)
   end)
---]]
+-]]
 -- END
