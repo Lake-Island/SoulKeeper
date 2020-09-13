@@ -336,6 +336,10 @@ bag_slot_unlock_frame:SetScript("OnEvent",
 -- TODO: What if player missing a bag in a slot? Would I get an error?
 
 -- TODO: Save data between sessions; e.g. next_open_slot, etc..
+-- TODO: What if you destroy a shard?
+-- ------> Clear the list of 'locked_shards' after destroying a shard
+-- TODO: Reset all shard data option
+-- TODO: Handle null case (e.g. reset data/just starting to use addon w/ undefined variables
 
 -- TODO: REMOVE ME!!!!
 -- Prints all slots in mapped to shards

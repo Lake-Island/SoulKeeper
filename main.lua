@@ -6,6 +6,7 @@ drain_soul = {
   end_t = -1 
 }
 
+-- data associated with soul shard
 killed_target = {
   time = -1,
   name = "",
@@ -17,11 +18,14 @@ killed_target = {
 
 -- Mapping of soul shards to bag indices
 -- TODO: Save these values between sessions
-shard_slots = { {}, {}, {}, {}, {} }
+shard_mapping = { {}, {}, {}, {}, {} }
 
 -- next available slot in bags (soul bag priority)
 next_open_slot = {}
 shard_added = false
+
+-- shard(s) that are currently locked (selected/swapping)
+locked_shards = {}
 
 -- Reset drain soul start/end times
 function resetData()
@@ -112,10 +116,10 @@ item_frame:SetScript("OnEvent",
           bag_number .. ", slot " .. shard_index
         )
         -- save deep copy of table
-        -- NOTE: Bag numbers index from [0-4] but the shard_slots table is from [1-5]
-        shard_slots[bag_number+1][shard_index] = core.deep_copy(killed_target)
-        print("Name: " .. shard_slots[bag_number+1][shard_index].name)
-        print("Location: " .. shard_slots[bag_number+1][shard_index].location)
+        -- NOTE: Bag numbers index from [0-4] but the shard_mapping table is from [1-5]
+        shard_mapping[bag_number+1][shard_index] = core.deep_copy(killed_target)
+        --print("Name: " .. shard_mapping[bag_number+1][shard_index].name)
+        --print("Location: " .. shard_mapping[bag_number+1][shard_index].location)
       end
     end
 
@@ -124,6 +128,73 @@ item_frame:SetScript("OnEvent",
 
     --print_shard_info()
   end)
+
+
+--[[
+  When a soul shard is locked (selected from inventory), save its data
+  in the locked_shards table with its bag/bag_slot numbers. 
+  Remove the shards mapping from the shard_mapping table until unlocked.
+  ( see 'ITEM_UNLOCKED' frame )
+--]]
+local bag_slot_lock_frame = CreateFrame("Frame")
+bag_slot_lock_frame:RegisterEvent("ITEM_LOCKED")
+bag_slot_lock_frame:SetScript("OnEvent",
+  function(self, event, ...)
+    local bag_id, slot_id = ...
+    local item_id = GetContainerItemID(bag_id, slot_id)
+    if item_id == core.SOUL_SHARD_ID then
+      -- add shard to table of currently locked shards
+      curr_shard = {}
+      curr_shard.data = shard_mapping[bag_id+1][slot_id]
+      curr_shard.bag_id = bag_id
+      curr_shard.slot_id = slot_id
+      table.insert(locked_shards, curr_shard)
+      shard_mapping[bag_id+1][slot_id] = nil
+
+      -- TODO: REMOVE ME!!!
+      print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
+      print("From [" .. bag_id+1 .. ", " .. slot_id .. "]")
+    end
+  end)
+
+
+--[[
+  When a soul shard is unlocked (put into the inventory from locked state),
+  update mapping with the shards data. 
+  Checks table of locked_shards adding the shard from a different bag slot
+  if there are more than one shards in the list (e.g. a swap is occuring).
+--]]
+local bag_slot_unlock_frame = CreateFrame("Frame")
+bag_slot_unlock_frame:RegisterEvent("ITEM_UNLOCKED")
+bag_slot_unlock_frame:SetScript("OnEvent",
+  function(self, event, ...)
+    local bag_id, slot_id = ...
+    local item_id = GetContainerItemID(bag_id, slot_id)
+    if item_id == core.SOUL_SHARD_ID then
+
+      -- select correct shard to insert from table of unlocked shards
+      for index, curr_shard in pairs(locked_shards) do
+        
+        -- only 1 element in table; set into slot; remove from table
+        if (#locked_shards == 1) then
+          shard_mapping[bag_id+1][slot_id] = table.remove(locked_shards,index).data
+
+        -- swapping multiple shards; select the one from a different slot
+        elseif ( (curr_shard.bag_id ~= bag_id) or 
+             (curr_shard.bag_id == bag_id and curr_shard.slot_id ~= slot_id) 
+           ) then
+            shard_mapping[bag_id+1][slot_id] = table.remove(locked_shards,index).data
+            break
+        end
+      end
+
+      -- TODO: REMOVE ME!!!
+      print("Added shard --- " .. shard_mapping[bag_id+1][slot_id].name .. " --- to map!")
+      print("To [" .. bag_id+1 .. ", " .. slot_id .. "]")
+    end
+  end)
+
+
 
 
 
@@ -145,11 +216,9 @@ function update_next_open_bag_slot()
         if bag_type == core.SOUL_BAG_TYPE and next(open_soul_bag) == nil then
           open_soul_bag['bag_number'] = bag_num
           open_soul_bag['open_index'] = free_slots[1]
-          print("Next open soul bag: " .. bag_num .. " index: " .. free_slots[1])
         elseif bag_type == core.NORMAL_BAG_TYPE and next(open_normal_bag) == nil then
           open_normal_bag['bag_number'] = bag_num
           open_normal_bag['open_index'] = free_slots[1]
-          print("Next open regular bag: " .. bag_num .. " index: " .. free_slots[1])
         end
       end
     end
@@ -157,14 +226,44 @@ function update_next_open_bag_slot()
     -- set next_open_slot to corresopnding bag/index
     if next(open_soul_bag) ~= nil then 
       next_open_slot = open_soul_bag
-      print("Next shard spot SOUL BAG")
     elseif next(open_normal_bag) ~= nil then
       next_open_slot = open_normal_bag
-      print("Next shard spot REGULAR BAG")
     else
       next_open_slot = {} 
     end
 end
 
+function print_shard_info() 
+  for i=1, 5 do
+    for j=1, 16 do
+      if shard_mapping[i][j] ~= nil then
+        print("Bag " .. i-1 .. " slot " .. j ..
+       "\nKilled " .. shard_mapping[i][j].name
+        .. "\n Location: " .. shard_mapping[i][j].location)
+      end
+    end
+  end
+end
 
+
+
+
+
+
+
+
+
+
+
+-- TODO: TEMP -- REMOVE ME!!!!
+--[[
+local target_info_frame = CreateFrame("Frame")
+target_info_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
+target_info_frame:SetScript("OnEvent",
+  function(self, event)
+    shard_mapping[2][1] = { name = 'x' }
+    shard_mapping[2][2] = { name = 'y' }
+    shard_mapping[2][3] = { name = 'z' }
+  end)
+--]]
 -- END
