@@ -27,10 +27,23 @@ shard_added = false
 -- shard(s) that are currently locked (selected/swapping)
 locked_shards = {}
 
+
 -- Reset drain soul start/end times
 function resetData()
     drain_soul = { start_t = -1, end_t = -1 }
 end
+
+
+--[[ Return true if the spell consumes a shard; false otherwise --]]
+function shard_consuming_spell(spell_name)
+  for _, shard_spell in pairs(core.SPELL_NAMES) do
+    if ( string.find(spell_name,shard_spell) ) then
+      return true
+    end
+  end
+  return false
+end
+
 
 --[[ Return the bag number and slot of next shard that will be consumed --]]
 function findNextShard()
@@ -48,6 +61,7 @@ function findNextShard()
   next_shard.bag = next_shard.bag
   return next_shard
 end
+
 
 --[[
   Set next_open_slot variable to contain the bag_number and index of the 
@@ -270,14 +284,30 @@ reload_frame:SetScript("OnEvent",
   end)
 
 
+--[[ TODO: ]]--
+-- Check if shard consuming spell was successfully cast, display 
+-- associated information about shard.
+local cast_success_frame = CreateFrame("Frame")
+cast_success_frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
+cast_success_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    local unit_target, cast_guid, spell_id = ...
+    local spell_name = GetSpellInfo(spell_id)
 
-
-
-
-
-
-
-
+    -- create healthstone/soulstone/etc...
+    if ( shard_consuming_spell(spell_name) ) then
+      print("Consumed a shard!")
+      consumed_shard = findNextShard()
+      if consumed_shard.bag == core.SLOT_NULL then -- prevents duplicate executions
+        return 
+      end
+      -- TODO: 
+      --  1. Temporary: Whisper to self consumed_shard data
+      --  2. Map HS/SS/whatever created to consumed_shard data
+      
+    --TODO: elseif (consume healthstone/soulstone/whatever) announce consuming HS with soul of w/e
+    end
+  end)
 
 
 
