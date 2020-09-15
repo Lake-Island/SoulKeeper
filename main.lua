@@ -1,11 +1,5 @@
 local _, core = ...
 
--- Start and end time of last cast 'Drain Soul'
-drain_soul = { 
-  start_t = -1, 
-  end_t = -1 
-}
-
 -- data associated with soul shard
 killed_target = {
   time = -1,
@@ -27,10 +21,48 @@ shard_added = false
 -- shard(s) that are currently locked (selected/swapping)
 locked_shards = {}
 
+-- Application time of shadowburn and its target
+shadowburn_data = {
+  applied = false,
+  application_time = nil,
+  end_time = nil,
+  target_guid = ""
+}
 
--- Reset drain soul start/end times
-function resetData()
-    drain_soul = { start_t = -1, end_t = -1 }
+-- Start and end time of last cast 'Drain Soul'
+drain_soul_data = { 
+  start_t = -1, 
+  end_t = -1,
+  target_guid = ""
+}
+
+
+function reset_shadowburn_data()
+  shadowburn_data = {
+    applied = false,
+    application_time = nil,
+    end_time = nil,
+    target_guid = ""
+  }
+end
+
+
+function set_shadowburn_data(dest_guid, time)
+  shadowburn_data = {
+    applied = true,
+    application_time = time,
+    end_time = time + core.SHADOWBURN_DEBUFF_TIME,
+    target_guid = dest_guid
+  }
+end
+
+
+function reset_drain_soul_data()
+  drain_soul_data = { 
+    start_t = -1, 
+    end_t = -1, 
+    target_guid = ""
+  }
 end
 
 
@@ -46,7 +78,7 @@ end
 
 
 --[[ Return the bag number and slot of next shard that will be consumed --]]
-function findNextShard()
+function find_next_shard()
   local next_shard = { bag = core.SLOT_NULL, index = core.SLOT_NULL }
   for bag_num, _ in ipairs(shard_mapping) do 
     for bag_index, _ in pairs(shard_mapping[bag_num]) do
@@ -99,20 +131,49 @@ function update_next_open_bag_slot()
 end
 
 
+--[[ TODO: save when shadowburn debuff was applied/removed from target --]]
 --[[ From the Combat Log save the targets details, time, and location of kill --]]
 local combat_log_frame = CreateFrame("Frame")
 combat_log_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 combat_log_frame:SetScript("OnEvent", function(self,event)
   local curr_time = GetTime()
-  local _, subevent, _, _, _, _, _, dest_guid, dest_name = CombatLogGetCurrentEventInfo()
-  if subevent == core.UNIT_DIED then 
+  local _, subevent, _, _, _, _, _, dest_guid, dest_name, _, _, _, spell_name = CombatLogGetCurrentEventInfo()
+  -- save info of dead target
+  -- TODO: Does this only run when the person I'm fighting dies? DOUBT IT! Test, does this run for fights I had
+  --  nothing to do with? 
+  if (subevent == core.UNIT_DIED) then 
     killed_target.time = curr_time
     killed_target.name = dest_name 
     killed_target.location = core.getPlayerZone()
-    if dest_guid ~= nil then -- non npc?
+    if (string.find(dest_guid, "Player")) ~= nil then -- non npc?
       local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
       killed_target.race = race_name
       killed_target.class = class_name
+    end
+
+    if ( (shadowburn_data.applied == true) and (shadowburn_data.target_guid == dest_guid) ) then
+      reset_shadowburn_data()
+      if next(next_open_slot) ~= nil then 
+        shard_added = true
+      end
+    end
+    
+    -- TODO: Move drainsoul code here? 
+    -- >> Can set a variable 'casting_drain_soul' to true with corresopnding GUI when I start casting,
+    --    then check here if true then do the shard thing... requires this to run before drain soul ends..
+    -- >> Then on drain souls top can just reset the data.. will no longer nee dto tell time and all 
+    --    'shard_added' code will be in one place (in this function)
+   
+  -- track details of cast shadowburn (e.g. debuff duration)
+  elseif (spell_name == core.SHADOWBURN) then
+    curr_time = GetTime()
+    if (subevent == core.AURA_APPLIED) then
+      print("Applied shadowburn on: " .. dest_guid)
+      set_shadowburn_data(dest_guid, GetTime(curr_time))
+    elseif ((subevent == core.AURA_REMOVED) and 
+            (curr_time >= shadowburn_data.end_time) ) then
+      print("Removed shadowburn")
+      reset_shadowburn_data()
     end
   end
 end)
@@ -125,7 +186,8 @@ channel_start_frame:SetScript("OnEvent", function(self,event, ...)
   local spell_name, _, _, start_time = ChannelInfo()  
   if spell_name == core.DRAIN_SOUL then 
     -- ChannelInfo() multiplies time by 1000 this undos that.
-    drain_soul.start_t = start_time/1000
+    -- TODO: Save GUID of target
+    drain_soul_data.start_t = start_time/1000
   end
 end)
 
@@ -142,14 +204,15 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   local spell_name = GetSpellInfo(spell_id)
 
   if spell_name == core.DRAIN_SOUL then 
-    drain_soul.end_t = curr_time
+    drain_soul_data.end_t = curr_time
+    -- TODO: CHECK GUID to make sure its the same target
 
     -- enemy killed during drain soul?
-    if ( killed_target.time >= drain_soul.start_t 
-         and killed_target.time <= drain_soul.end_t
+    if ( killed_target.time >= drain_soul_data.start_t 
+         and killed_target.time <= drain_soul_data.end_t
          and killed_target.time ~= -1 
-         and drain_soul.start_t ~= -1
-         and drain_soul.end_t ~= -1
+         and drain_soul_data.start_t ~= -1
+         and drain_soul_data.end_t ~= -1
        ) then 
       -- check if there is space for newly captured soul shard
       if next(next_open_slot) ~= nil then 
@@ -157,7 +220,7 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
       end
     end
 
-    resetData()
+    reset_drain_soul_data()
   end
 end)
 
@@ -297,7 +360,7 @@ cast_success_frame:SetScript("OnEvent",
     -- create healthstone/soulstone/etc...
     if ( shard_consuming_spell(spell_name) ) then
       print("Consumed a shard!")
-      consumed_shard = findNextShard()
+      consumed_shard = find_next_shard()
       if consumed_shard.bag == core.SLOT_NULL then -- prevents duplicate executions
         return 
       end
@@ -313,7 +376,9 @@ cast_success_frame:SetScript("OnEvent",
 
 
 
-
+-- TODO: Problem: Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
+-- Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
+--  >> Would this occur before or after mapping? 
 
 
 function print_shard_info() 
@@ -330,10 +395,21 @@ end
 
 
 
-
+--[[ NOTE: Didn't work out since UnitAura requries a UnitID and the combat log doesn't provide one
+function print_target_debuffs(unit_name)
+  for i=1,40 do
+    -- harmful debuffs set by player
+    local name, icon, _, _, _, etime, source = UnitAura(unit_name,i, "HARMFUL PLAYER")
+    if name then
+      print(("%d=%s, %s, %.2f minutes left."):format(i,name,source,(etime-GetTime())/60))
+    end
+  end
+end
+]]--
 
 -- TODO: Handle if player destroys a shard
 -- TODO: Reset data option
+-- TODO: Make sure drain_soul/shadowburn checks if enemy yielded xp/honor before mapping shard
 
 
 
@@ -341,16 +417,11 @@ end
 
 -- TODO: TEMP -- REMOVE ME!!!!
 --[[
-local target_info_frame = CreateFrame("Frame")
-target_info_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
-target_info_frame:SetScript("OnEvent",
+local test_frame = CreateFrame("Frame")
+test_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
+test_frame:SetScript("OnEvent",
   function(self, event)
-    shard_mapping[2][1] = { name = 'x' }
-    shard_mapping[2][2] = { name = 'y' }
-    shard_mapping[2][3] = { name = 'z' }
-    next_shard = findNextShard()
-    print("Next shard bag: " .. next_shard.bag)
-    print("Next shard index: " .. next_shard.index)
+    --print_target_debuffs()
   end)
--]]
+]]--
 -- END
