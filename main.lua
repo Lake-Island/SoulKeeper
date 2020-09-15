@@ -10,6 +10,8 @@ killed_target = {
   -- TODO: Add level if alliance? 
 }
 
+current_target_guid = ""
+
 -- Mapping of soul shards to bag indices
 -- TODO: Save these values between sessions
 shard_mapping = { {}, {}, {}, {}, {} }
@@ -21,7 +23,6 @@ shard_added = false
 -- shard(s) that are currently locked (selected/swapping)
 locked_shards = {}
 
--- Application time of shadowburn and its target
 shadowburn_data = {
   applied = false,
   application_time = nil,
@@ -29,13 +30,10 @@ shadowburn_data = {
   target_guid = ""
 }
 
--- Start and end time of last cast 'Drain Soul'
 drain_soul_data = { 
-  start_t = -1, 
-  end_t = -1,
+  casting = false,
   target_guid = ""
 }
-
 
 function reset_shadowburn_data()
   shadowburn_data = {
@@ -59,8 +57,7 @@ end
 
 function reset_drain_soul_data()
   drain_soul_data = { 
-    start_t = -1, 
-    end_t = -1, 
+    casting = false,
     target_guid = ""
   }
 end
@@ -130,17 +127,24 @@ function update_next_open_bag_slot()
     end
 end
 
+local current_target_frame = CreateFrame("Frame")
+current_target_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
+current_target_frame:SetScript("OnEvent",
+  function(self, event)
+    current_target_guid = UnitGUID("target")
+  end)
 
---[[ TODO: save when shadowburn debuff was applied/removed from target --]]
---[[ From the Combat Log save the targets details, time, and location of kill --]]
+
+--[[ 
+     From the Combat Log save the targets details, time, and location of kill.
+     Track shadowburn debuff data.
+--]]
 local combat_log_frame = CreateFrame("Frame")
 combat_log_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 combat_log_frame:SetScript("OnEvent", function(self,event)
   local curr_time = GetTime()
   local _, subevent, _, _, _, _, _, dest_guid, dest_name, _, _, _, spell_name = CombatLogGetCurrentEventInfo()
   -- save info of dead target
-  -- TODO: Does this only run when the person I'm fighting dies? DOUBT IT! Test, does this run for fights I had
-  --  nothing to do with? 
   if (subevent == core.UNIT_DIED) then 
     killed_target.time = curr_time
     killed_target.name = dest_name 
@@ -151,19 +155,20 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
       killed_target.class = class_name
     end
 
-    if ( (shadowburn_data.applied == true) and (shadowburn_data.target_guid == dest_guid) ) then
-      reset_shadowburn_data()
-      if next(next_open_slot) ~= nil then 
+    -- shard consuming spell active on killed target; reset corresponding data
+    if (shadowburn_data.applied or drain_soul_data.casting) then
+      if (shadowburn_data.target_guid == dest_guid ) then
+        reset_shadowburn_data()
+      end
+      if (drain_soul_data.target_guid == dest_guid) then
+        reset_drain_soul_data()
+      end
+      -- shard added if space available in bag
+      if (next(next_open_slot) ~= nil) then 
         shard_added = true
       end
     end
     
-    -- TODO: Move drainsoul code here? 
-    -- >> Can set a variable 'casting_drain_soul' to true with corresopnding GUI when I start casting,
-    --    then check here if true then do the shard thing... requires this to run before drain soul ends..
-    -- >> Then on drain souls top can just reset the data.. will no longer nee dto tell time and all 
-    --    'shard_added' code will be in one place (in this function)
-   
   -- track details of cast shadowburn (e.g. debuff duration)
   elseif (spell_name == core.SHADOWBURN) then
     curr_time = GetTime()
@@ -179,47 +184,25 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
 end)
 
 
---[[ Time drain soul started channeling --]]
+--[[ Record that drain soul started channeling. --]]
 local channel_start_frame = CreateFrame("Frame")
 channel_start_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 channel_start_frame:SetScript("OnEvent", function(self,event, ...)
   local spell_name, _, _, start_time = ChannelInfo()  
   if spell_name == core.DRAIN_SOUL then 
-    -- ChannelInfo() multiplies time by 1000 this undos that.
-    -- TODO: Save GUID of target
-    drain_soul_data.start_t = start_time/1000
+    drain_soul_data.casting = true
+    drain_soul_data.target_guid = current_target_guid
   end
 end)
 
 
---[[ 
-  Time drain soul stopped channeling. 
-  Check if the enemy was killed during this time.
---]]
+--[[ Record that drain soul stopped channeling. ]]--
 local channel_end_frame = CreateFrame("Frame")
 channel_end_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   local _, _, spell_id = ... 
-  local curr_time = GetTime()  
   local spell_name = GetSpellInfo(spell_id)
-
   if spell_name == core.DRAIN_SOUL then 
-    drain_soul_data.end_t = curr_time
-    -- TODO: CHECK GUID to make sure its the same target
-
-    -- enemy killed during drain soul?
-    if ( killed_target.time >= drain_soul_data.start_t 
-         and killed_target.time <= drain_soul_data.end_t
-         and killed_target.time ~= -1 
-         and drain_soul_data.start_t ~= -1
-         and drain_soul_data.end_t ~= -1
-       ) then 
-      -- check if there is space for newly captured soul shard
-      if next(next_open_slot) ~= nil then 
-        shard_added = true
-      end
-    end
-
     reset_drain_soul_data()
   end
 end)
@@ -233,7 +216,6 @@ local item_frame = CreateFrame("Frame")
 item_frame:RegisterEvent("BAG_UPDATE")
 item_frame:SetScript("OnEvent",
   function(self, event, ...)
-
     -- Drain soul was successfully cast on killed target after last BAG_UPDATE
     if shard_added then
       shard_added = false
@@ -392,7 +374,6 @@ function print_shard_info()
     end
   end
 end
-
 
 
 --[[ NOTE: Didn't work out since UnitAura requries a UnitID and the combat log doesn't provide one
