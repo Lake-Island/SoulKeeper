@@ -17,6 +17,7 @@ current_target_guid = ""
 shard_mapping = { {}, {}, {}, {}, {} }
 
 -- map created stones to kill_data used to create them
+-- TODO: Add logout time; on login check if exceeded 15m, wipe table if true
 stone_mapping = {}
 
 -- next available slot in bags (soul bag priority)
@@ -387,13 +388,18 @@ cast_success_frame:SetScript("OnEvent",
 
 
 
+
+
+-- TODO: Player destroys shard/ss/hs/etc.
+-- -----> ss/hs does it matter? since it overwrites the data anyway
+-- -----> What about 15min logout buffer for conjured items?
+
 -- TODO: On summon, dont set to nil; figure this out
 -- ---> STOP_CHANNELING > BAG_UPDATE; on successful summon
 -- ---> Can have bool is_summoning whiel channeling; 
 -- TODO: Created HS/SS will show --made with soul of "x"--; then maybe option to announce on use of SS/summon whose
 --        soul it is :D
 -- TODO: How to handle spellstone/firestone? Just map data and make the UI show when hovering over it?
--- TODO: Handle if player destroys a shard
 -- TODO: Reset data option
 -- TODO: Make sure drain_soul/shadowburn checks if enemy yielded xp/honor before mapping shard
 -- TODO: Problem: Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
@@ -402,6 +408,9 @@ cast_success_frame:SetScript("OnEvent",
 -- TODO: Add little UI option that always shows next available soul (like a little square somewhere)
 --  **** Can also have text there.. e.g. summoning pet/ creating hs/ with soul of.. w/e can add all these as options
 -- TODO: List of all warlocks with available SS?
+
+-- TODO: TESTING - - - - - - - - - - - - - - - -
+-- ---> Testing saving data between sessions
 
 
 -- TODO: FOR TESTING -- REMOVE ME!!!!
