@@ -7,6 +7,7 @@ core.SOUL_BAG_TYPE = 3
 core.NORMAL_BAG_TYPE = 0
 
 -- Spells
+core.SOUL_SHARD_ID = 6265
 core.DRAIN_SOUL = "Drain Soul"
 core.CONJURE_STONE_NAMES = {
   HS = "Create Healthstone",
@@ -27,7 +28,6 @@ core.MISC_SPELL_NAMES = {
 }
 
 -- Misc
-core.SOUL_SHARD_ID = 6265
 core.UNIT_DIED  = "UNIT_DIED"
 core.SHADOWBURN = "Shadowburn"
 core.SHADOWBURN_DEBUFF_TIME = 5
@@ -45,18 +45,21 @@ core.DEFAULT_KILLED_TARGET_DATA = {
 -- Map stone creating name spell to created stone
 core.STONE_NAME = {}
 
+-- Healthstones items have 3 different ID's each; map to spell name instead
 core.STONE_NAME["Create Healthstone (Minor)"] = "Minor Healthstone"
 core.STONE_NAME["Create Healthstone (Lesser)"] = "Lesser Healthstone"
 core.STONE_NAME["Create Healthstone"] = "Healthstone"
 core.STONE_NAME["Create Healthstone (Greater)"] = "Greater Healthstone"
-core.STONE_NAME["Create Healthstone (Major)"] = "Major Healthstone"
+core.STONE_NAME["Create Healthstone (Major)"] = "Major Healthstone" 
 
-core.STONE_NAME["Create Soulstone (Minor)"] = "Minor Soulstone"
-core.STONE_NAME["Create Soulstone (Lesser)"] = "Lesser Soulstone"
-core.STONE_NAME["Create Soulstone"] = "Soulstone"
-core.STONE_NAME["Create Soulstone (Greater)"] = "Greater Soulstone"
-core.STONE_NAME["Create Soulstone (Major)"] = "Major Soulstone"
+-- Soulstone items all named 'Soulstone Resurrection'; map to spell ID instead
+core.STONE_NAME["Create Soulstone (Minor)"] = 20707
+core.STONE_NAME["Create Soulstone (Lesser)"] = 20762
+core.STONE_NAME["Create Soulstone"] = 20763
+core.STONE_NAME["Create Soulstone (Greater)"] = 20764
+core.STONE_NAME["Create Soulstone (Major)"] = 20765
 
+-- TODO: Test spellstone/firestone
 core.STONE_NAME["Create Spellstone"] = "Spellstone"
 core.STONE_NAME["Create Spellstone (Greater)"] = "Greater Spellstone"
 core.STONE_NAME["Create Spellstone (Major)"] = "Major Spellstone"

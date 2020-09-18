@@ -167,7 +167,7 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
   local curr_time = GetTime()
   local _, subevent, _, _, _, _, _, dest_guid, dest_name, _, _, _, spell_name = CombatLogGetCurrentEventInfo()
   -- save info of dead target
-  -- TODO: Code always runs even if im not the one fighting; is thsi a problem?
+  -- TODO: Code always runs even if im not the one fighting; is this a problem?
   if (subevent == core.UNIT_DIED) then 
     killed_target.time = curr_time
     killed_target.name = dest_name 
@@ -196,11 +196,9 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
   elseif (spell_name == core.SHADOWBURN) then
     curr_time = GetTime()
     if (subevent == core.AURA_APPLIED) then
-      --print("Applied shadowburn on: " .. dest_guid)
       set_shadowburn_data(dest_guid, GetTime(curr_time))
     elseif ((subevent == core.AURA_REMOVED) and 
             (curr_time >= shadowburn_data.end_time) ) then
-      --print("Removed shadowburn")
       reset_shadowburn_data()
     end
   end
@@ -212,7 +210,6 @@ local channel_start_frame = CreateFrame("Frame")
 channel_start_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 channel_start_frame:SetScript("OnEvent", function(self,event, ...)
   local spell_name, _, _, start_time = ChannelInfo()  
-  --print("START CHANNELING: " .. spell_name)
   if spell_name == core.DRAIN_SOUL then 
     drain_soul_data.casting = true
     drain_soul_data.target_guid = current_target_guid
@@ -226,7 +223,6 @@ channel_end_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   local _, _, spell_id = ... 
   local spell_name = GetSpellInfo(spell_id)
-  --print("STOP CHANNELING: " .. spell_name)
   if spell_name == core.DRAIN_SOUL then 
     reset_drain_soul_data()
   end
@@ -252,7 +248,7 @@ item_frame:SetScript("OnEvent",
         shard_mapping[bag_number+1][shard_index] = core.deep_copy(killed_target)
       end
     end
-    --print("BAG UPDATED -- SS GONE?")
+    
     -- update next open slot
     update_next_open_bag_slot()
   end)
@@ -279,9 +275,10 @@ bag_slot_lock_frame:SetScript("OnEvent",
       table.insert(locked_shards, curr_shard)
       shard_mapping[bag_id+1][slot_id] = nil
 
+      -- TODO: Different target while casting drain_soul bug?
+
       -- TODO: REMOVE ME!!!
       print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
-      --print("From [" .. bag_id+1 .. ", " .. slot_id .. "]")
     end
   end)
 
@@ -318,7 +315,6 @@ bag_slot_unlock_frame:SetScript("OnEvent",
 
       -- TODO: REMOVE ME!!!
       print("Added shard --- " .. shard_mapping[bag_id+1][slot_id].name .. " --- to map!")
-      --print("To [" .. bag_id+1 .. ", " .. slot_id .. "]")
     end
   end)
 
@@ -345,9 +341,11 @@ reload_frame:SetScript("OnEvent",
   end)
 
 
---[[ TODO: Created stone name diff than spell_name used to create it ]]--
--- Check if shard consuming spell was successfully cast, display 
--- associated information about shard.
+--[[
+  Check if a shard consuming spell was cast successfully. Map corresponding shard 
+  data to newly conjured stone/pet. 
+  -- NOTE: Soulstones are mapped to spell_IDs, healthstones/spellstones/firestones to spell_names.
+--]]
 local cast_success_frame = CreateFrame("Frame")
 cast_success_frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 cast_success_frame:SetScript("OnEvent", 
@@ -355,34 +353,32 @@ cast_success_frame:SetScript("OnEvent",
     local unit_target, cast_guid, spell_id = ...
     local spell_name = GetSpellInfo(spell_id)
 
-    -- TODO: TEST THIS WITH SOUL STONE!
-    --print("SPELL NAME: " .. spell_name)
-
     -- conjure stone spells
     if ( shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) ) then
       shard_data = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
       stone_name = core.STONE_NAME[spell_name]
       stone_mapping[stone_name] = shard_data
+
       print("Created " .. stone_name .. " with the soul of --- " .. shard_data.name .. " ---")
-      
-      -- TODO: 
-      -- X. On stone map stone name to data
-      -- X. On stone usage (below) remove from stone_mapping and print data
-      -- X. On pet set to nil (remove from mapping) -- print summoned pet w/ 'soul of x'
-      -- 4. On summon, dont set to nil; figure this out
-      -- ---> STOP_CHANNELING > BAG_UPDATE; on successful summon
-      -- ---> Can have bool is_summoning whiel channeling; 
 
     -- summon pet spells
     elseif ( shard_consuming_spell(spell_name, core.SUMMON_PET_NAMES) ) then
       local shard_data = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
+
       print("Summoned " .. spell_name .. " with the soul of --- " .. shard_data.name .. " ---")
 
-    -- consuming stone TODO: Test consuming SS
+    -- consuming healthstone 
     elseif ( stone_mapping[spell_name] ~= nil ) then
       stone_data = stone_mapping[spell_name]
+      stone_mapping[spell_name] = nil
+
+      print("Consumed the soul of: " .. stone_data.name)
+
+    -- consuming soulstone
+    elseif ( stone_mapping[spell_id] ~= nil ) then
+      stone_data = stone_mapping[spell_id]
       stone_mapping[spell_name] = nil
 
       print("Consumed the soul of: " .. stone_data.name)
@@ -391,9 +387,12 @@ cast_success_frame:SetScript("OnEvent",
 
 
 
-
+-- TODO: On summon, dont set to nil; figure this out
+-- ---> STOP_CHANNELING > BAG_UPDATE; on successful summon
+-- ---> Can have bool is_summoning whiel channeling; 
 -- TODO: Created HS/SS will show --made with soul of "x"--; then maybe option to announce on use of SS/summon whose
 --        soul it is :D
+-- TODO: How to handle spellstone/firestone? Just map data and make the UI show when hovering over it?
 -- TODO: Handle if player destroys a shard
 -- TODO: Reset data option
 -- TODO: Make sure drain_soul/shadowburn checks if enemy yielded xp/honor before mapping shard
@@ -405,8 +404,6 @@ cast_success_frame:SetScript("OnEvent",
 -- TODO: List of all warlocks with available SS?
 
 
-
-
 -- TODO: FOR TESTING -- REMOVE ME!!!!
 --[[
 local test_frame = CreateFrame("Frame")
@@ -415,6 +412,27 @@ test_frame:SetScript("OnEvent",
   function(self, event)
     --print_target_debuffs()
   end)
-]]--
 
+local cast_start_frame = CreateFrame("Frame")
+cast_start_frame:RegisterEvent("UNIT_SPELLCAST_START")
+cast_start_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    local unit_target, cast_guid, spell_id = ...
+    local spell_name = GetSpellInfo(spell_id)
+    print("Name: " .. spell_name .. ", ID: " .. spell_id)
+
+    -- consuming health stone 
+    if ( stone_mapping[spell_name] ~= nil ) then
+      stone_data = stone_mapping[spell_name]
+      print("Consumed the soul of: " .. stone_data.name)
+
+    -- consuming soul stone
+    elseif ( stone_mapping[spell_id] ~= nil ) then
+      stone_data = stone_mapping[spell_id]
+      print("Consumed the soul of: " .. stone_data.name)
+    end
+  end)
+
+
+]]--
 -- END
