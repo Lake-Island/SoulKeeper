@@ -12,9 +12,12 @@ killed_target = {
 
 current_target_guid = ""
 
--- Mapping of soul shards to bag indices
+-- Mapping of data of saved souls to bag indices
 -- TODO: Save these values between sessions
 shard_mapping = { {}, {}, {}, {}, {} }
+
+-- map created stones to kill_data used to create them
+stone_mapping = {}
 
 -- next available slot in bags (soul bag priority)
 next_open_slot = {}
@@ -64,8 +67,8 @@ end
 
 
 --[[ Return true if the spell consumes a shard; false otherwise --]]
-function shard_consuming_spell(spell_name)
-  for _, shard_spell in pairs(core.SPELL_NAMES) do
+function shard_consuming_spell(spell_name, spell_list)
+  for _, shard_spell in pairs(spell_list) do
     if ( string.find(spell_name,shard_spell) ) then
       return true
     end
@@ -132,6 +135,14 @@ current_target_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
 current_target_frame:SetScript("OnEvent",
   function(self, event)
     current_target_guid = UnitGUID("target")
+    --[[ TODO: Remove me! InGroup fires if also in raid
+    if (IsInGroup()) then
+      print("In a group!")
+    end
+    if (IsInRaid()) then
+      print("In a raid!")
+    end
+    ]]--
   end)
 
 
@@ -173,11 +184,11 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
   elseif (spell_name == core.SHADOWBURN) then
     curr_time = GetTime()
     if (subevent == core.AURA_APPLIED) then
-      print("Applied shadowburn on: " .. dest_guid)
+      --print("Applied shadowburn on: " .. dest_guid)
       set_shadowburn_data(dest_guid, GetTime(curr_time))
     elseif ((subevent == core.AURA_REMOVED) and 
             (curr_time >= shadowburn_data.end_time) ) then
-      print("Removed shadowburn")
+      --print("Removed shadowburn")
       reset_shadowburn_data()
     end
   end
@@ -189,6 +200,7 @@ local channel_start_frame = CreateFrame("Frame")
 channel_start_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 channel_start_frame:SetScript("OnEvent", function(self,event, ...)
   local spell_name, _, _, start_time = ChannelInfo()  
+  --print("START CHANNELING: " .. spell_name)
   if spell_name == core.DRAIN_SOUL then 
     drain_soul_data.casting = true
     drain_soul_data.target_guid = current_target_guid
@@ -202,6 +214,7 @@ channel_end_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   local _, _, spell_id = ... 
   local spell_name = GetSpellInfo(spell_id)
+  --print("STOP CHANNELING: " .. spell_name)
   if spell_name == core.DRAIN_SOUL then 
     reset_drain_soul_data()
   end
@@ -211,6 +224,7 @@ end)
 --[[
   On BAG_UPDATE (inventory change), check if item was a newly added soul shard. 
   Save mapping of new shard to bag index. Update next open bag slot.
+  >> NOTE: Bag numbers index from [0-4] but the shard_mapping table is from [1-5]
 --]]
 local item_frame = CreateFrame("Frame")
 item_frame:RegisterEvent("BAG_UPDATE")
@@ -223,22 +237,12 @@ item_frame:SetScript("OnEvent",
       local shard_index = next_open_slot['open_index']
       local item_id = GetContainerItemID(bag_number, shard_index)
       if item_id == core.SOUL_SHARD_ID then
-        print(
-         "Soul shard added to bag : " .. 
-          bag_number .. ", slot " .. shard_index
-        )
-        -- save deep copy of table
-        -- NOTE: Bag numbers index from [0-4] but the shard_mapping table is from [1-5]
         shard_mapping[bag_number+1][shard_index] = core.deep_copy(killed_target)
-        --print("Name: " .. shard_mapping[bag_number+1][shard_index].name)
-        --print("Location: " .. shard_mapping[bag_number+1][shard_index].location)
       end
     end
-
+    --print("BAG UPDATED -- SS GONE?")
     -- update next open slot
     update_next_open_bag_slot()
-
-    --print_shard_info()
   end)
 
 
@@ -265,7 +269,7 @@ bag_slot_lock_frame:SetScript("OnEvent",
 
       -- TODO: REMOVE ME!!!
       print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
-      print("From [" .. bag_id+1 .. ", " .. slot_id .. "]")
+      --print("From [" .. bag_id+1 .. ", " .. slot_id .. "]")
     end
   end)
 
@@ -302,7 +306,7 @@ bag_slot_unlock_frame:SetScript("OnEvent",
 
       -- TODO: REMOVE ME!!!
       print("Added shard --- " .. shard_mapping[bag_id+1][slot_id].name .. " --- to map!")
-      print("To [" .. bag_id+1 .. ", " .. slot_id .. "]")
+      --print("To [" .. bag_id+1 .. ", " .. slot_id .. "]")
     end
   end)
 
@@ -329,7 +333,7 @@ reload_frame:SetScript("OnEvent",
   end)
 
 
---[[ TODO: ]]--
+--[[ TODO: Created stone name diff than spell_name used to create it ]]--
 -- Check if shard consuming spell was successfully cast, display 
 -- associated information about shard.
 local cast_success_frame = CreateFrame("Frame")
@@ -339,64 +343,71 @@ cast_success_frame:SetScript("OnEvent",
     local unit_target, cast_guid, spell_id = ...
     local spell_name = GetSpellInfo(spell_id)
 
-    -- create healthstone/soulstone/etc...
-    if ( shard_consuming_spell(spell_name) ) then
-      print("Consumed a shard!")
-      consumed_shard = find_next_shard()
-      if consumed_shard.bag == core.SLOT_NULL then -- prevents duplicate executions
+    -- TODO: TEST THIS WITH SOUL STONE!
+    --print("SPELL NAME: " .. spell_name)
+
+    -- conjure stone spells
+    if ( shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) ) then
+      consumed_shard_location = find_next_shard()
+      if consumed_shard_location.bag == core.SLOT_NULL then -- prevents duplicate executions
         return 
       end
-      -- TODO: 
-      --  1. Temporary: Whisper to self consumed_shard data
-      --  2. Map HS/SS/whatever created to consumed_shard data
+
+      local shard_data = shard_mapping[consumed_shard_location.bag][consumed_shard_location.index]
+      shard_mapping[consumed_shard_location.bag][consumed_shard_location.index] = nil
+      stone_name = core.STONE_NAME[spell_name]
+      stone_mapping[stone_name] = shard_data
+      print("Created " .. stone_name .. " with the soul of --- " .. shard_data.name .. " ---")
+
+      -- just make map of spell name to data? Then look up in table when consuming a stone?
       
-    --TODO: elseif (consume healthstone/soulstone/whatever) announce consuming HS with soul of w/e
+      -- TODO: 
+      -- X. On stone map stone name to data
+      -- X. On stone usage (below) remove from stone_mapping and print data
+      -- X. On pet set to nil (remove from mapping) -- print summoned pet w/ 'soul of x'
+      -- 4. On summon, dont set to nil; figure this out
+      -- ---> STOP_CHANNELING > BAG_UPDATE; on successful summon
+      -- ---> Can have bool is_summoning whiel channeling; 
+
+    -- summon pet spells
+    elseif ( shard_consuming_spell(spell_name, core.SUMMON_PET_NAMES) ) then
+      -- TODO: Repeated code, basically everything in this statement
+      consumed_shard_location = find_next_shard()
+      if consumed_shard_location.bag == core.SLOT_NULL then -- prevents duplicate executions
+        return 
+      end
+      local shard_data = shard_mapping[consumed_shard_location.bag][consumed_shard_location.index]
+      shard_mapping[consumed_shard_location.bag][consumed_shard_location.index] = nil
+      print("Summoned " .. spell_name .. " with the soul of --- " .. shard_data.name .. " ---")
+
+    -- consuming stone TODO: Test consuming SS
+    elseif ( stone_mapping[spell_name] ~= nil ) then
+      stone_data = stone_mapping[spell_name]
+      stone_mapping[spell_name] = nil
+
+      print("Consumed the soul of: " .. stone_data.name)
     end
   end)
 
 
 
 
-
--- TODO: Problem: Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
--- Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
---  >> Would this occur before or after mapping? 
-
-
-function print_shard_info() 
-  for i=1, 5 do
-    for j=1, 16 do
-      if shard_mapping[i][j] ~= nil then
-        print("Bag " .. i-1 .. " slot " .. j ..
-       "\nKilled " .. shard_mapping[i][j].name
-        .. "\n Location: " .. shard_mapping[i][j].location .. "\n - - - - - -") 
-      end
-    end
-  end
-end
-
-
---[[ NOTE: Didn't work out since UnitAura requries a UnitID and the combat log doesn't provide one
-function print_target_debuffs(unit_name)
-  for i=1,40 do
-    -- harmful debuffs set by player
-    local name, icon, _, _, _, etime, source = UnitAura(unit_name,i, "HARMFUL PLAYER")
-    if name then
-      print(("%d=%s, %s, %.2f minutes left."):format(i,name,source,(etime-GetTime())/60))
-    end
-  end
-end
-]]--
-
+-- TODO: Created HS/SS will show --made with soul of "x"--; then maybe option to announce on use of SS/summon whose
+--        soul it is :D
 -- TODO: Handle if player destroys a shard
 -- TODO: Reset data option
 -- TODO: Make sure drain_soul/shadowburn checks if enemy yielded xp/honor before mapping shard
+-- TODO: Problem: Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
+    --  >> Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
+    --  >> Would this occur before or after mapping? 
+-- TODO: Add little UI option that always shows next available soul (like a little square somewhere)
+--  **** Can also have text there.. e.g. summoning pet/ creating hs/ with soul of.. w/e can add all these as options
+-- TODO: List of all warlocks with available SS?
 
 
 
 
-
--- TODO: TEMP -- REMOVE ME!!!!
+-- TODO: FOR TESTING -- REMOVE ME!!!!
 --[[
 local test_frame = CreateFrame("Frame")
 test_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
@@ -405,4 +416,5 @@ test_frame:SetScript("OnEvent",
     --print_target_debuffs()
   end)
 ]]--
+
 -- END

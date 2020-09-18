@@ -8,10 +8,22 @@ core.NORMAL_BAG_TYPE = 0
 
 -- Spells
 core.DRAIN_SOUL = "Drain Soul"
-core.SPELL_NAMES = {
-  -- TODO: List spells that consume shards
+core.CONJURE_STONE_NAMES = {
   HS = "Create Healthstone",
-  SS = "Create Soulstone"
+  SS = "Create Soulstone",
+  FS = "Create Firestone",
+  SPELL_S = "Create Spellstone",
+}
+core.SUMMON_PET_NAMES = {
+  SUMMON_VW = "Summon Voidwalker",
+  SUMMON_SUCCUBUS = "Summon Succubus",
+  SUMMON_FELHUNTER = "Summon Felhunter"
+}
+core.MISC_SPELL_NAMES = {
+  SUMMON = "Ritual of Summoning",
+  -- TODO: 
+  ----> Enslave demon (add/test)
+  ----> Anything else? 
 }
 
 -- Misc
@@ -23,35 +35,36 @@ core.AURA_APPLIED = "SPELL_AURA_APPLIED"
 core.AURA_REMOVED = "SPELL_AURA_REMOVED"
 core.DEFAULT_KILLED_TARGET_DATA = {
   time = -1,
-  name = "<MISSING_DATA>",
-  race = "<MISSING_DATA>",
-  class = "<MISSING_DATA>",
-  location = "<MISSING_DATA>"
+  name = "<No_Data>",
+  race = "<No_Data>",
+  class = "<No_Data>",
+  location = "<No_Data>"
   -- TODO: Add level if alliance?
 }
 
-STONE_NAME = {}
--- HS
-STONE_NAME["Create Healthstone (Minor)"] = "Minor Healthstone"
-STONE_NAME["Create Healthstone (Lesser)"] = "Lesser Healthstone"
-STONE_NAME["Create Healthstone"] = "Healthstone"
-STONE_NAME["Create Healthstone (Greater)"] = "Greater Healthstone"
-STONE_NAME["Create Healthstone (Major)"] = "Major Healthstone"
--- SS
-STONE_NAME["Create Soulstone (Minor)"] = "Minor Soulstone"
-STONE_NAME["Create Soulstone (Lesser)"] = "Lesser Soulstone"
-STONE_NAME["Create Soulstone"] = "Soulstone"
-STONE_NAME["Create Soulstone (Greater)"] = "Greater Soulstone"
-STONE_NAME["Create Soulstone (Major)"] = "Major Soulstone"
--- Spellstone
-STONE_NAME["Create Spellstone"] = "Spellstone"
-STONE_NAME["Create Spellstone (Greater)"] = "Greater Spellstone"
-STONE_NAME["Create Spellstone (Major)"] = "Major Spellstone"
--- Firestone
-STONE_NAME["Create Firestone (Lesser)"] = "Lesser Firestone"
-STONE_NAME["Create Firestone"] = "Firestone"
-STONE_NAME["Create Firestone (Greater)"] = "Greater Firestone"
-STONE_NAME["Create Firestone (Major)"] = "Major Firestone"
+-- Map stone creating name spell to created stone
+core.STONE_NAME = {}
+
+core.STONE_NAME["Create Healthstone (Minor)"] = "Minor Healthstone"
+core.STONE_NAME["Create Healthstone (Lesser)"] = "Lesser Healthstone"
+core.STONE_NAME["Create Healthstone"] = "Healthstone"
+core.STONE_NAME["Create Healthstone (Greater)"] = "Greater Healthstone"
+core.STONE_NAME["Create Healthstone (Major)"] = "Major Healthstone"
+
+core.STONE_NAME["Create Soulstone (Minor)"] = "Minor Soulstone"
+core.STONE_NAME["Create Soulstone (Lesser)"] = "Lesser Soulstone"
+core.STONE_NAME["Create Soulstone"] = "Soulstone"
+core.STONE_NAME["Create Soulstone (Greater)"] = "Greater Soulstone"
+core.STONE_NAME["Create Soulstone (Major)"] = "Major Soulstone"
+
+core.STONE_NAME["Create Spellstone"] = "Spellstone"
+core.STONE_NAME["Create Spellstone (Greater)"] = "Greater Spellstone"
+core.STONE_NAME["Create Spellstone (Major)"] = "Major Spellstone"
+
+core.STONE_NAME["Create Firestone (Lesser)"] = "Lesser Firestone"
+core.STONE_NAME["Create Firestone"] = "Firestone"
+core.STONE_NAME["Create Firestone (Greater)"] = "Greater Firestone"
+core.STONE_NAME["Create Firestone (Major)"] = "Major Firestone"
 
 
 --[[ Return player subzone and realzone as concatenated string --]]
@@ -74,3 +87,29 @@ function deep_copy(obj)
         return res
 end
 core.deep_copy = deep_copy
+
+
+
+--[[******* DEBUG TOOLS ********]]--
+function print_table(my_table)
+  for key, val in pairs(my_table) do
+    print("KEY: " .. key)
+    print("VALUE: " .. val)
+  end
+end
+core.print_table = print_table
+
+
+function print_shard_info(shard_mapping) 
+  for i=1, 5 do
+    for j=1, 16 do
+      if shard_mapping[i][j] ~= nil then
+        print("Bag " .. i-1 .. " slot " .. j ..
+       "\nKilled " .. shard_mapping[i][j].name
+        .. "\n Location: " .. shard_mapping[i][j].location .. "\n - - - - - -") 
+      end
+    end
+  end
+end
+core.print_shard_info = print_shard_info
+
