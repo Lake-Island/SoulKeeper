@@ -95,6 +95,17 @@ function find_next_shard()
 end
 
 
+--[[ Return the data of the next shard from inventory ]]--
+function get_next_shard_data()
+  next_shard_location = find_next_shard()
+  if next_shard_location.bag == core.SLOT_NULL then -- prevents duplicate executions
+    return nil
+  end
+  local shard_data = shard_mapping[next_shard_location.bag][next_shard_location.index]
+  return shard_data
+end
+
+
 --[[
   Set next_open_slot variable to contain the bag_number and index of the 
   next open bag slot. Only soulbags and regular bags considered, soul bags
@@ -156,6 +167,7 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
   local curr_time = GetTime()
   local _, subevent, _, _, _, _, _, dest_guid, dest_name, _, _, _, spell_name = CombatLogGetCurrentEventInfo()
   -- save info of dead target
+  -- TODO: Code always runs even if im not the one fighting; is thsi a problem?
   if (subevent == core.UNIT_DIED) then 
     killed_target.time = curr_time
     killed_target.name = dest_name 
@@ -348,18 +360,11 @@ cast_success_frame:SetScript("OnEvent",
 
     -- conjure stone spells
     if ( shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) ) then
-      consumed_shard_location = find_next_shard()
-      if consumed_shard_location.bag == core.SLOT_NULL then -- prevents duplicate executions
-        return 
-      end
-
-      local shard_data = shard_mapping[consumed_shard_location.bag][consumed_shard_location.index]
-      shard_mapping[consumed_shard_location.bag][consumed_shard_location.index] = nil
+      shard_data = get_next_shard_data()
+      shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
       stone_name = core.STONE_NAME[spell_name]
       stone_mapping[stone_name] = shard_data
       print("Created " .. stone_name .. " with the soul of --- " .. shard_data.name .. " ---")
-
-      -- just make map of spell name to data? Then look up in table when consuming a stone?
       
       -- TODO: 
       -- X. On stone map stone name to data
@@ -371,13 +376,8 @@ cast_success_frame:SetScript("OnEvent",
 
     -- summon pet spells
     elseif ( shard_consuming_spell(spell_name, core.SUMMON_PET_NAMES) ) then
-      -- TODO: Repeated code, basically everything in this statement
-      consumed_shard_location = find_next_shard()
-      if consumed_shard_location.bag == core.SLOT_NULL then -- prevents duplicate executions
-        return 
-      end
-      local shard_data = shard_mapping[consumed_shard_location.bag][consumed_shard_location.index]
-      shard_mapping[consumed_shard_location.bag][consumed_shard_location.index] = nil
+      local shard_data = get_next_shard_data()
+      shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
       print("Summoned " .. spell_name .. " with the soul of --- " .. shard_data.name .. " ---")
 
     -- consuming stone TODO: Test consuming SS
