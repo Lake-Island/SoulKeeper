@@ -126,6 +126,7 @@ end
 local function get_next_shard_data()
   next_shard_location = find_next_shard()
   if next_shard_location.bag == core.SLOT_NULL then -- prevents duplicate executions
+    print("NULL!!") -- TODO: REMOVE ME!
     return nil
   end
   local shard_data = shard_mapping[next_shard_location.bag][next_shard_location.index]
@@ -368,16 +369,20 @@ cast_success_frame:SetScript("OnEvent",
     -- conjure stone spells
     -- TODO: Running twice (sometimes? -- on login?) when I conjure a SS/HS
     if shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) then
-      shard_data = get_next_shard_data()
+      local shard_data = get_next_shard_data()
+      if shard_data == nil then return end
       shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
       stone_name = core.STONE_NAME[spell_name]
       stone_mapping[stone_name] = shard_data
+
+      print("SPELL_NAME: " .. spell_name .. ", ID: " .. spell_id)
 
       print("Created " .. stone_name .. " with the soul of --- " .. shard_data.name .. " ---")
 
     -- summon pet spells
     elseif shard_consuming_spell(spell_name, core.SUMMON_PET_NAMES) then
       local shard_data = get_next_shard_data()
+      if shard_data == nil then return end
       shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
 
       print("Summoned " .. spell_name .. " with the soul of --- " .. shard_data.name .. " ---")
@@ -392,15 +397,26 @@ cast_success_frame:SetScript("OnEvent",
     -- consuming soulstone
     elseif stone_mapping[spell_id] ~= nil then
       stone_data = stone_mapping[spell_id]
-      stone_mapping[spell_name] = nil
+      stone_mapping[spell_id] = nil
 
       print("Consumed the soul of: " .. stone_data.name)
     end
   end)
 
 
-
-
+ 
+local delete_item_frame = CreateFrame("Frame")
+delete_item_frame:RegisterEvent("DELETE_ITEM_CONFIRM")
+delete_item_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    -- TODO: When item unlocked, can save slot/index and if this runs while unlocked
+    -- check if shard
+    local name, quality_id, bonding, questWarn = ...
+    print("DELETING ITEM: " .. name)
+    print("Quality-ID: " .. quality_id)
+    print("bonding: " .. bonding)
+    print("quest: " .. questWarn)
+  end)
 
 -- TODO: Player destroys shard/ss/hs/etc.
 -- -----> ss/hs does it matter? since it overwrites the data anyway
@@ -417,6 +433,9 @@ cast_success_frame:SetScript("OnEvent",
 -- TODO: Add little UI option that always shows next available soul (like a little square somewhere)
 --  **** Can also have text there.. e.g. summoning pet/ creating hs/ with soul of.. w/e can add all these as options
 -- TODO: List of all warlocks with available SS?
+
+-- TODO: BUG - - - - - - - - - - - - - - - - - -
+-- ---> SUCCESSFUL CAST running twice sometimes (not sure when); breaks shard_mapping when conjuring stones
 
 -- TODO: TESTING - - - - - - - - - - - - - - - -
 -- ---> Testing saving data between sessions
