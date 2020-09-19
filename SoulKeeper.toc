@@ -4,5 +4,6 @@
 ## Version: 0.1
 ##SavedVariablesPerCharacter: shard_mapping, stone_mapping
 
-core.lua
-main.lua
+Core.lua
+Eventhandler.lua
+Main.lua
