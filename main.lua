@@ -33,9 +33,12 @@ SLASH_SK1 = "/sk"
 SlashCmdList["SK"] = soulkeeper
 
 
+-- DEBUG: Print item_name with id
+--[[
 local function itemid(item_id) 
   print("Item_name: " .. C_Item.GetItemNameByID(item_id))
 end
 
 SLASH_SKD1 = '/skd'
 SlashCmdList["SKD"] = itemid
+]]--

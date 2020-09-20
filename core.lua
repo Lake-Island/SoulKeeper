@@ -74,7 +74,16 @@ core.STONE_ID = {
   [13701] = 'Major Firestone'
 }
 
--- Map stone creating name spell to created stone
+-- map soulstone ressurection spell_id to SS item_id
+core.SOULSTONE_ID = {
+  [20707] = 5232,   -- minor 
+  [20762] = 16892,  -- lesser
+  [20763] = 16893,  -- regular
+  [20764] = 16895,  -- greater
+  [20765] = 16896   -- major
+}
+
+-- Map stone creating spell-name to created stone
 core.STONE_NAME = {}
 
 -- Healthstones items have 3 different ID's each; map to spell name instead
@@ -84,12 +93,21 @@ core.STONE_NAME["Create Healthstone"] = "Healthstone"
 core.STONE_NAME["Create Healthstone (Greater)"] = "Greater Healthstone"
 core.STONE_NAME["Create Healthstone (Major)"] = "Major Healthstone" 
 
+core.STONE_NAME["Create Soulstone (Minor)"] = 5232
+core.STONE_NAME["Create Soulstone (Lesser)"] = 16892
+core.STONE_NAME["Create Soulstone"] = 16893
+core.STONE_NAME["Create Soulstone (Greater)"] = 16895
+core.STONE_NAME["Create Soulstone (Major)"] = 16896
+
+
 -- Soulstone items all named 'Soulstone Resurrection'; map to spell ID instead
+--[[
 core.STONE_NAME["Create Soulstone (Minor)"] = 20707
 core.STONE_NAME["Create Soulstone (Lesser)"] = 20762
 core.STONE_NAME["Create Soulstone"] = 20763
 core.STONE_NAME["Create Soulstone (Greater)"] = 20764
 core.STONE_NAME["Create Soulstone (Major)"] = 20765
+]]--
 
 -- TODO: Test spellstone/firestone
 core.STONE_NAME["Create Spellstone"] = "Spellstone"

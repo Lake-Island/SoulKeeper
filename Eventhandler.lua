@@ -19,14 +19,15 @@ shard_mapping = { {}, {}, {}, {}, {} }
 -- TODO: Add logout time; on login check if exceeded 15m, wipe table if true
 stone_mapping = {}
 
--- next available slot in bags (soul bag priority)
 next_open_slot = {}
+
+locked_shards = {}
 shard_added = false
 shard_deleted = false
 stone_created = false
 
--- shard(s) that are currently locked (selected/swapping)
-locked_shards = {}
+locked_stone = {}
+stone_deleted = false
 
 shadowburn_data = {
   applied = false,
@@ -267,7 +268,6 @@ local item_frame = CreateFrame("Frame")
 item_frame:RegisterEvent("BAG_UPDATE")
 item_frame:SetScript("OnEvent",
   function(self, event, ...)
-    print("BAG_UPDATE")
     if shard_added then
       shard_added = false
       local bag_number = next_open_slot['bag_number']
@@ -287,6 +287,13 @@ item_frame:SetScript("OnEvent",
     if stone_created then 
       stone_created = false
     end
+
+    if stone_deleted then
+      print("Stone deleted")
+      -- TODO: Remove from mapping
+      locked_stone = {}
+      stone_deleted = false
+    end
    
     -- update next open slot
     update_next_open_bag_slot()
@@ -305,7 +312,6 @@ bag_slot_lock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag_id, slot_id = ...
     local item_id = GetContainerItemID(bag_id, slot_id)
-    print("LOCKED")
     if item_id == core.SOUL_SHARD_ID then
       -- add shard to table of currently locked shards
       curr_shard = {}
@@ -317,6 +323,11 @@ bag_slot_lock_frame:SetScript("OnEvent",
 
       -- TODO: REMOVE ME!!!
       print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
+
+    -- mark stone as 'locked'
+    elseif core.STONE_ID[item_id] ~= nil then
+      locked_stone = item_id
+      print("LOCKING ID: " .. item_id)
     end
   end)
 
@@ -333,7 +344,6 @@ bag_slot_unlock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag_id, slot_id = ...
     local item_id = GetContainerItemID(bag_id, slot_id)
-    print("UNLOCKED")
     if item_id == core.SOUL_SHARD_ID then
 
       -- select correct shard to insert from table of unlocked shards
@@ -352,6 +362,10 @@ bag_slot_unlock_frame:SetScript("OnEvent",
 
       -- TODO: REMOVE ME!!!
       print("Added shard --- " .. shard_mapping[bag_id+1][slot_id].name .. " --- to map!")
+
+    -- mark stone 'unlocked'
+    elseif core.STONE_ID[item_id] ~= nil then
+      locked_stone = {}
     end
   end)
 
@@ -378,6 +392,7 @@ cast_success_frame:SetScript("OnEvent",
   function(self,event,...)
     local unit_target, cast_guid, spell_id = ...
     local spell_name = GetSpellInfo(spell_id)
+    local soulstone_id = core.SOULSTONE_ID[spell_id] -- soulstone resurrection spell
 
     -- conjure stone spells
     if shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) and not stone_created then
@@ -405,9 +420,9 @@ cast_success_frame:SetScript("OnEvent",
       print("Consumed the soul of: " .. stone_data.name)
 
     -- consuming soulstone
-    elseif stone_mapping[spell_id] ~= nil then
-      stone_data = stone_mapping[spell_id]
-      stone_mapping[spell_id] = nil
+    elseif soulstone_id ~= nil then
+      stone_data = stone_mapping[soulstone_id]
+      stone_mapping[soulstone_id] = nil
 
       print("Consumed the soul of: " .. stone_data.name)
     end
@@ -420,6 +435,8 @@ delete_item_frame:SetScript("OnEvent",
   function(self,event,...)
     if locked_shards[1] ~= nil then
       shard_deleted = true
+    elseif locked_stone ~= nil then
+      stone_deleted = true
     end
   end)
  
@@ -449,6 +466,32 @@ delete_item_frame:SetScript("OnEvent",
 -- ---> Drain_soul/shadowburned target that does NOT yield xp/honor shouldn't get mapped || mess anything else up!
 -- ---> DELETE SHARD > then lock/unlock a different shard; will break after first attempt
 -- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
+
+local cast_start_frame = CreateFrame("Frame")
+cast_start_frame:RegisterEvent("UNIT_SPELLCAST_START")
+cast_start_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    local unit_target, cast_guid, spell_id = ...
+    local spell_name = GetSpellInfo(spell_id)
+
+    ss_id = core.SOULSTONE_ID[spell_id]
+    if ss_id ~= nil then
+      print("Name: " .. spell_name .. ", SS_ID: " .. ss_id .. ", SR-ID: " .. spell_id)
+    else
+      print("Name: " .. spell_name .. ", SR-ID: " .. spell_id)
+    end
+
+    -- consuming health stone 
+    if ( stone_mapping[spell_name] ~= nil ) then
+      stone_data = stone_mapping[spell_name]
+      print("Consumed the soul of: " .. stone_data.name)
+
+    -- consuming soul stone
+    elseif ( ss_id ~= nil ) then
+      stone_data = stone_mapping[ss_id]
+      print("Consumed the soul of: " .. stone_data.name)
+    end
+  end)
 
 
 -- TODO: FOR TESTING -- REMOVE ME!!!!
