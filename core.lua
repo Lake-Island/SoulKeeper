@@ -42,6 +42,38 @@ core.DEFAULT_KILLED_TARGET_DATA = {
   -- TODO: Add level if alliance?
 }
 
+
+-- item_id to stone_name
+core.STONE_ID = {
+  [5512]  = 'Minor Healthstone',
+  [19004] = 'Minor Healthstone',
+  [19005] = 'Minor Healthstone',
+  [5511]  = 'Lesser Healthstone',
+  [19006] = 'Lesser Healthstone',
+  [19007] = 'Lesser Healthstone',
+  [5509]  = 'Healthstone',
+  [19008] = 'Healthstone',
+  [19009] = 'Healthstone',
+  [5510]  = 'Greater Healthstone',
+  [19010] = 'Greater Healthstone',
+  [19011] = 'Greater Healthstone',
+  [9421]  = 'Major Healthstone',
+  [19012] = 'Major Healthstone',
+  [19013] = 'Major Healthstone',
+  [5232]  = 'Minor Soulstone',
+  [16892] = 'Lesser Soulstone',
+  [16893] = 'Soulstone',
+  [16895] = 'Greater Soulstone',
+  [16896] = 'Major Soulstone',
+  [5522]  = 'Spellstone',
+  [13602] = 'Greater Spellstone',
+  [13603] = 'Major Spellstone',
+  [1254]  = 'Lesser Firestone',
+  [13699] = 'Firestone',
+  [13700] = 'Greater Firestone',
+  [13701] = 'Major Firestone'
+}
+
 -- Map stone creating name spell to created stone
 core.STONE_NAME = {}
 

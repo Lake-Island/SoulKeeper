@@ -23,6 +23,7 @@ stone_mapping = {}
 next_open_slot = {}
 shard_added = false
 shard_deleted = false
+stone_created = false
 
 -- shard(s) that are currently locked (selected/swapping)
 locked_shards = {}
@@ -267,7 +268,6 @@ item_frame:RegisterEvent("BAG_UPDATE")
 item_frame:SetScript("OnEvent",
   function(self, event, ...)
     print("BAG_UPDATE")
-    -- Drain soul was successfully cast on killed target after last BAG_UPDATE
     if shard_added then
       shard_added = false
       local bag_number = next_open_slot['bag_number']
@@ -278,9 +278,14 @@ item_frame:SetScript("OnEvent",
       end
     end
 
+    -- unless deleted, shards never 'lock' during bag_update
     if shard_deleted then 
       locked_shards =  {}
       shard_deleted = false
+    end
+
+    if stone_created then 
+      stone_created = false
     end
    
     -- update next open slot
@@ -300,6 +305,7 @@ bag_slot_lock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag_id, slot_id = ...
     local item_id = GetContainerItemID(bag_id, slot_id)
+    print("LOCKED")
     if item_id == core.SOUL_SHARD_ID then
       -- add shard to table of currently locked shards
       curr_shard = {}
@@ -327,6 +333,7 @@ bag_slot_unlock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag_id, slot_id = ...
     local item_id = GetContainerItemID(bag_id, slot_id)
+    print("UNLOCKED")
     if item_id == core.SOUL_SHARD_ID then
 
       -- select correct shard to insert from table of unlocked shards
@@ -373,15 +380,14 @@ cast_success_frame:SetScript("OnEvent",
     local spell_name = GetSpellInfo(spell_id)
 
     -- conjure stone spells
-    -- TODO: Running twice (sometimes? -- on login?) when I conjure a SS/HS
-    if shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) then
+    if shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) and not stone_created then
       local shard_data = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
       stone_name = core.STONE_NAME[spell_name]
       stone_mapping[stone_name] = shard_data
-
-      print("SPELL_NAME: " .. spell_name .. ", ID: " .. spell_id)
-
+      
+      -- Avoid duplicate execution when this function runs twice
+      stone_created = true 
       print("Created " .. stone_name .. " with the soul of --- " .. shard_data.name .. " ---")
 
     -- summon pet spells
@@ -417,9 +423,11 @@ delete_item_frame:SetScript("OnEvent",
     end
   end)
  
--- TODO: Player destroys shard/ss/hs/etc.
+
+
+
+-- TODO: Player destroys ss/hs/etc.
 -- -----> ss/hs does it matter? since it overwrites the data anyway
--- -----> What about 15min logout buffer for conjured items?
 -- TODO: Conjured items; 15m logout clear; even necessary?
 
 -- TODO: On summon, dont set to nil; figure this out
@@ -440,6 +448,7 @@ delete_item_frame:SetScript("OnEvent",
 -- ---> Testing saving data between sessions
 -- ---> Drain_soul/shadowburned target that does NOT yield xp/honor shouldn't get mapped || mess anything else up!
 -- ---> DELETE SHARD > then lock/unlock a different shard; will break after first attempt
+-- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
 
 
 -- TODO: FOR TESTING -- REMOVE ME!!!!
