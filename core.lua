@@ -1,5 +1,8 @@
 local _, core = ...
 
+core.HS = "HS"
+core.NON_HS = "NON-HS"
+
 -- Bags
 core.SLOT_NULL  = 666
 core.MAX_BAG_INDEX = 4
@@ -42,9 +45,8 @@ core.DEFAULT_KILLED_TARGET_DATA = {
   -- TODO: Add level if alliance?
 }
 
-
--- item_id to stone_name
-core.STONE_ID = {
+-- item_id of all stones
+core.STONE_ID_TO_NAME = {
   [5512]  = 'Minor Healthstone',
   [19004] = 'Minor Healthstone',
   [19005] = 'Minor Healthstone',
@@ -74,8 +76,8 @@ core.STONE_ID = {
   [13701] = 'Major Firestone'
 }
 
--- map soulstone ressurection spell_id to SS item_id
-core.SOULSTONE_ID = {
+-- soulstone ressurection spell_id to item_id
+core.CONSUME_SS_SID_TO_IID = {
   [20707] = 5232,   -- minor 
   [20762] = 16892,  -- lesser
   [20763] = 16893,  -- regular
@@ -83,41 +85,84 @@ core.SOULSTONE_ID = {
   [20765] = 16896   -- major
 }
 
--- Map stone creating spell-name to created stone
-core.STONE_NAME = {}
+-- consume healthstone spell_id to item_id
+core.CONSUME_HS_SID_TO_IID = {
+  -- minor
+  [6262] = 5512, 
+  [23468] = 19004,
+  [23469] = 19005,
+  -- lesser
+  [6263] = 5511, 
+  [23470] = 19006,
+  [23471] = 19007,
+  -- regular
+  [5720] = 5509, 
+  [23472] = 19008,
+  [23473] = 19009,
+  -- greater
+  [5723] = 5510, 
+  [23474] = 19010,
+  [23475] = 19011,
+  -- major
+  [11732] = 9421, 
+  [23476] = 19012,
+  [23477] = 19013,
+}
 
--- Healthstones items have 3 different ID's each; map to spell name instead
-core.STONE_NAME["Create Healthstone (Minor)"] = "Minor Healthstone"
-core.STONE_NAME["Create Healthstone (Lesser)"] = "Lesser Healthstone"
-core.STONE_NAME["Create Healthstone"] = "Healthstone"
-core.STONE_NAME["Create Healthstone (Greater)"] = "Greater Healthstone"
-core.STONE_NAME["Create Healthstone (Major)"] = "Major Healthstone" 
 
-core.STONE_NAME["Create Soulstone (Minor)"] = 5232
-core.STONE_NAME["Create Soulstone (Lesser)"] = 16892
-core.STONE_NAME["Create Soulstone"] = 16893
-core.STONE_NAME["Create Soulstone (Greater)"] = 16895
-core.STONE_NAME["Create Soulstone (Major)"] = 16896
+core.CREATE_HS_SID = {
+  [6201]  = "Create Healthstone (Minor)",
+  [6202]  = "Create Healthstone (Lesser)",
+  [5699]  = "Create Healthstone",
+  [11729] = "Create Healthstone (Greater)",
+  [11730] = "Create Healthstone (Major)"
+}
 
-
--- Soulstone items all named 'Soulstone Resurrection'; map to spell ID instead
---[[
-core.STONE_NAME["Create Soulstone (Minor)"] = 20707
-core.STONE_NAME["Create Soulstone (Lesser)"] = 20762
-core.STONE_NAME["Create Soulstone"] = 20763
-core.STONE_NAME["Create Soulstone (Greater)"] = 20764
-core.STONE_NAME["Create Soulstone (Major)"] = 20765
-]]--
-
--- TODO: Test spellstone/firestone
-core.STONE_NAME["Create Spellstone"] = "Spellstone"
-core.STONE_NAME["Create Spellstone (Greater)"] = "Greater Spellstone"
-core.STONE_NAME["Create Spellstone (Major)"] = "Major Spellstone"
-
-core.STONE_NAME["Create Firestone (Lesser)"] = "Lesser Firestone"
-core.STONE_NAME["Create Firestone"] = "Firestone"
-core.STONE_NAME["Create Firestone (Greater)"] = "Greater Firestone"
-core.STONE_NAME["Create Firestone (Major)"] = "Major Firestone"
+-- HS mapped to consume HS spell_id
+-- NON_HS mappted to item_id
+core.SPELL_NAME_TO_ITEM_ID = {
+  ["HS"] = {
+    ["Create Healthstone (Minor)"]   = {
+      [0] = 5512,
+      [1] = 19004,
+      [2] = 19005
+    },
+    ["Create Healthstone (Lesser)"]  = {
+      [0] = 5511,
+      [1] = 19006,
+      [2] = 19007
+    },
+    ["Create Healthstone"]           = {
+      [0] = 5509,
+      [1] = 19008,
+      [2] = 19009
+    },
+    ["Create Healthstone (Greater)"] = {
+      [0] = 5510,
+      [1] = 19010,
+      [2] = 19011
+    },
+    ["Create Healthstone (Major)"]   = {
+      [0] = 9421,
+      [1] = 19012,
+      [2] = 19013
+    }
+  },
+  ["NON-HS"] = {
+    ["Create Soulstone (Minor)"]     = 5232,
+    ["Create Soulstone (Lesser)"]    = 16892,
+    ["Create Soulstone"]             = 16893,
+    ["Create Soulstone (Greater)"]   = 16895,
+    ["Create Soulstone (Major)"]     = 16896,
+    ["Create Spellstone"]            = 5522,
+    ["Create Spellstone (Greater)"]  = 13602,
+    ["Create Spellstone (Major)"]    = 13603,
+    ["Create Firestone (Lesser)"]    = 1254,
+    ["Create Firestone"]             = 13699,
+    ["Create Firestone (Greater)"]   = 13700,
+    ["Create Firestone (Major)"]     = 13701
+  }
+}
 
 
 --[[ Return player subzone and realzone as concatenated string --]]
@@ -140,7 +185,6 @@ function deep_copy(obj)
         return res
 end
 core.deep_copy = deep_copy
-
 
 
 --[[******* DEBUG TOOLS ********]]--

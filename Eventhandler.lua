@@ -15,7 +15,7 @@ current_target_guid = ""
 -- Mapping of data of saved souls to bag indices
 shard_mapping = { {}, {}, {}, {}, {} }
 
--- map created stones to kill_data used to create them
+-- map conjured stone item_ID to kill data 
 -- TODO: Add logout time; on login check if exceeded 15m, wipe table if true
 stone_mapping = {}
 
@@ -26,7 +26,7 @@ shard_added = false
 shard_deleted = false
 stone_created = false
 
-locked_stone = {}
+locked_stone_iid = {}
 stone_deleted = false
 
 shadowburn_data = {
@@ -66,6 +66,15 @@ local function reset_drain_soul_data()
     casting = false,
     target_guid = ""
   }
+end
+
+
+-- TODO: >> When HS created.. check table for HS indexed by this total
+-- ----> Update core SPELL_NAME_TO_ITEM_ID.. have subclass.. ['healthstone'] & ['other'] when HS you will index 
+-- into it by the improved_hs_pts variable to save the mapping
+local function get_total_pts_imp_hs()
+    _, _, _, _, total_pts = GetTalentInfo(2,1,1)
+    return total_pts
 end
 
 
@@ -289,9 +298,8 @@ item_frame:SetScript("OnEvent",
     end
 
     if stone_deleted then
-      print("Stone deleted")
-      -- TODO: Remove from mapping
-      locked_stone = {}
+      stone_mapping[locked_stone_iid] = nil
+      locked_stone_iid = {}
       stone_deleted = false
     end
    
@@ -325,9 +333,8 @@ bag_slot_lock_frame:SetScript("OnEvent",
       print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
 
     -- mark stone as 'locked'
-    elseif core.STONE_ID[item_id] ~= nil then
-      locked_stone = item_id
-      print("LOCKING ID: " .. item_id)
+    elseif core.STONE_ID_TO_NAME[item_id] ~= nil then
+      locked_stone_iid = item_id
     end
   end)
 
@@ -364,8 +371,8 @@ bag_slot_unlock_frame:SetScript("OnEvent",
       print("Added shard --- " .. shard_mapping[bag_id+1][slot_id].name .. " --- to map!")
 
     -- mark stone 'unlocked'
-    elseif core.STONE_ID[item_id] ~= nil then
-      locked_stone = {}
+    elseif core.STONE_ID_TO_NAME[item_id] ~= nil then
+      locked_stone_iid = {}
     end
   end)
 
@@ -381,10 +388,34 @@ reload_frame:SetScript("OnEvent",
   end)
 
 
+-- get item id of stone associated with conjure spell
+local function get_stone_item_id(spell_id, spell_name)
+  -- hs; query with pts in imp. hs
+  if core.CREATE_HS_SID[spell_id] ~= nil then
+    imp_hs_pts = get_total_pts_imp_hs() 
+    return core.SPELL_NAME_TO_ITEM_ID[core.HS][spell_name][imp_hs_pts]
+  -- non-hs
+  else
+    return core.SPELL_NAME_TO_ITEM_ID[core.NON_HS][spell_name]
+  end
+
+end
+
+
+local function is_consume_stone_spell(spell_id)
+  local hs_stone_iid = core.CONSUME_HS_SID_TO_IID[spell_id] 
+  local ss_stone_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
+  if hs_stone_iid ~= nil then return hs_stone_iid
+  elseif ss_stone_iid ~=nil then return ss_stone_iid
+  else return nil end
+end
+
+
 --[[
   Check if a shard consuming spell was cast successfully. Map corresponding shard 
   data to newly conjured stone/pet. 
-  -- NOTE: Soulstones are mapped to spell_IDs, healthstones/spellstones/firestones to spell_names.
+  -- NOTE: Store stones in mapping by item_id, this way events ITEM_LOCK/UNLOCK can 
+            access the corresponding item mapping.
 --]]
 local cast_success_frame = CreateFrame("Frame")
 cast_success_frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
@@ -392,15 +423,16 @@ cast_success_frame:SetScript("OnEvent",
   function(self,event,...)
     local unit_target, cast_guid, spell_id = ...
     local spell_name = GetSpellInfo(spell_id)
-    local soulstone_id = core.SOULSTONE_ID[spell_id] -- soulstone resurrection spell
+    local consumed_stone_iid = is_consume_stone_spell(spell_id)
 
     -- conjure stone spells
     if shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) and not stone_created then
       local shard_data = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
-      stone_name = core.STONE_NAME[spell_name]
-      stone_mapping[stone_name] = shard_data
-      
+      stone_iid = get_stone_item_id(spell_id, spell_name)
+      stone_name = core.STONE_ID_TO_NAME[stone_iid]
+      stone_mapping[stone_iid] = shard_data
+
       -- Avoid duplicate execution when this function runs twice
       stone_created = true 
       print("Created " .. stone_name .. " with the soul of --- " .. shard_data.name .. " ---")
@@ -412,17 +444,9 @@ cast_success_frame:SetScript("OnEvent",
 
       print("Summoned " .. spell_name .. " with the soul of --- " .. shard_data.name .. " ---")
 
-    -- consuming healthstone 
-    elseif stone_mapping[spell_name] ~= nil then
-      stone_data = stone_mapping[spell_name]
-      stone_mapping[spell_name] = nil
-
-      print("Consumed the soul of: " .. stone_data.name)
-
-    -- consuming soulstone
-    elseif soulstone_id ~= nil then
-      stone_data = stone_mapping[soulstone_id]
-      stone_mapping[soulstone_id] = nil
+    elseif consumed_stone_iid ~= nil and stone_mapping[consumed_stone_iid] ~= nil then
+      local stone_data = stone_mapping[consumed_stone_iid]
+      stone_mapping[consumed_stone_iid] = nil
 
       print("Consumed the soul of: " .. stone_data.name)
     end
@@ -435,7 +459,7 @@ delete_item_frame:SetScript("OnEvent",
   function(self,event,...)
     if locked_shards[1] ~= nil then
       shard_deleted = true
-    elseif locked_stone ~= nil then
+    elseif locked_stone_iid ~= nil then
       stone_deleted = true
     end
   end)
@@ -443,14 +467,11 @@ delete_item_frame:SetScript("OnEvent",
 
 
 
--- TODO: Player destroys ss/hs/etc.
--- -----> ss/hs does it matter? since it overwrites the data anyway
 -- TODO: Conjured items; 15m logout clear; even necessary?
 
 -- TODO: On summon, dont set to nil; figure this out
 -- ---> STOP_CHANNELING > BAG_UPDATE; on successful summon
 -- ---> Can have bool is_summoning whiel channeling; 
--- TODO: How to handle spellstone/firestone? Just map data and make the UI show when hovering over it?
 -- TODO: Problem: Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
     --  >> Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
     --  >> Would this occur before or after mapping? 
@@ -458,40 +479,21 @@ delete_item_frame:SetScript("OnEvent",
 --  **** Can also have text there.. e.g. summoning pet/ creating hs/ with soul of.. w/e can add all these as options
 -- TODO: List of all warlocks with available SS?
 
--- TODO: BUG - - - - - - - - - - - - - - - - - -
--- ---> SUCCESSFUL CAST running twice sometimes (not sure when); breaks shard_mapping when conjuring stones
+
 
 -- TODO: TESTING - - - - - - - - - - - - - - - -
 -- ---> Testing saving data between sessions
 -- ---> Drain_soul/shadowburned target that does NOT yield xp/honor shouldn't get mapped || mess anything else up!
 -- ---> DELETE SHARD > then lock/unlock a different shard; will break after first attempt
 -- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
+-- ---> SPELL_SUCCESS consuming SS/HS.. Test with SS consumption; swap with healthstones/different healthstones
+-- ---> Destroy stuff
+--
+-- TODO: REFACTOR
+-- ---> Refactor to no longer use spell_name is SPELLCAST_SUCCEED & get_stone_id.. use ID's instead.. would require refactoring core
+-- ---> Core code.. label magic numbers... e.g. (MINOR_SS_ITEM_ID = 66666), etc..
 
-local cast_start_frame = CreateFrame("Frame")
-cast_start_frame:RegisterEvent("UNIT_SPELLCAST_START")
-cast_start_frame:SetScript("OnEvent", 
-  function(self,event,...)
-    local unit_target, cast_guid, spell_id = ...
-    local spell_name = GetSpellInfo(spell_id)
 
-    ss_id = core.SOULSTONE_ID[spell_id]
-    if ss_id ~= nil then
-      print("Name: " .. spell_name .. ", SS_ID: " .. ss_id .. ", SR-ID: " .. spell_id)
-    else
-      print("Name: " .. spell_name .. ", SR-ID: " .. spell_id)
-    end
-
-    -- consuming health stone 
-    if ( stone_mapping[spell_name] ~= nil ) then
-      stone_data = stone_mapping[spell_name]
-      print("Consumed the soul of: " .. stone_data.name)
-
-    -- consuming soul stone
-    elseif ( ss_id ~= nil ) then
-      stone_data = stone_mapping[ss_id]
-      print("Consumed the soul of: " .. stone_data.name)
-    end
-  end)
 
 
 -- TODO: FOR TESTING -- REMOVE ME!!!!
