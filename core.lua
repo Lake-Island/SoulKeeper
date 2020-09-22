@@ -4,9 +4,12 @@ core.HS = "HS"
 core.NON_HS = "NON-HS"
 core.CHAT_TYPE_RAID = "RAID"
 core.CHAT_TYPE_PARTY = "PARTY"
-core.FIFTEEN_MINUTES = 900 -- seconds
 core.SS_MESSAGE = "%s, the soul of <%s> is yours!"
+core.SUMMON_MESSAGE = "Summoning %s with the soul of <%s>, please assist!"
+
+core.FIFTEEN_MINUTES = 900 -- seconds
 core.FIND_HERBS_SID = 2383
+core.RITUAL_OF_SUMM_SID = 698
 
 -- Bags
 core.SLOT_NULL  = 666

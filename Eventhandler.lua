@@ -1,5 +1,11 @@
 local _, core = ...
 
+-- TODO: REMOVE ME********
+test_summon = false
+-- TODO: REMOVE ME********
+
+enable_chat = true
+
 -- data associated with soul shard
 killed_target = {
   time = -1,
@@ -10,7 +16,8 @@ killed_target = {
   -- TODO: Add level if alliance? 
 }
 
-current_target_guid = ""
+current_target_guid = nil
+current_target_name = nil
 
 logout_time = GetServerTime()
 
@@ -103,6 +110,16 @@ local function reset_mapping_data()
 end
 core.reset_mapping_data = reset_mapping_data
 
+local function toggle_debug()
+  test_summon = not test_summon
+end
+core.toggle_debug = toggle_debug
+
+local function toggle_chat()
+  enable_chat = not enable_chat
+end
+core.toggle_chat = toggle_chat
+
 
 --[[ Return true if the spell consumes a shard; false otherwise --]]
 local function shard_consuming_spell(spell_name, spell_list)
@@ -141,6 +158,12 @@ local function get_next_shard_data()
   end
   local shard_data = shard_mapping[next_shard_location.bag][next_shard_location.index]
   return shard_data
+end
+
+
+local function is_target_player()
+  if current_target_guid == nil then return false end
+  return string.find(current_target_guid, "Player") ~= nil
 end
 
 
@@ -205,12 +228,14 @@ end
 
 --[[ Display message to raid, party if no raid, nothing otherwise. ]]--
 local function message_active_party(mssg)
-  if IsInRaid() then
-    SendChatMessage(mssg, core.CHAT_TYPE_RAID)
-  elseif IsInGroup() then
-    SendChatMessage(mssg, core.CHAT_TYPE_PARTY)
-  else
-    print("Not currently in a party/raid")
+  if enable_chat then
+    if IsInRaid() then
+      SendChatMessage(mssg, core.CHAT_TYPE_RAID)
+    elseif IsInGroup() then
+      SendChatMessage(mssg, core.CHAT_TYPE_PARTY)
+    else
+      print("Not currently in a party/raid")
+    end
   end
 end
 
@@ -220,6 +245,7 @@ current_target_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
 current_target_frame:SetScript("OnEvent",
   function(self, event)
     current_target_guid = UnitGUID("target")
+    current_target_name = UnitName("target")
   end)
 
 
@@ -232,13 +258,30 @@ combat_log_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 combat_log_frame:SetScript("OnEvent", function(self,event)
   local curr_time = GetTime()
   local _, subevent, _, _, _, _, _, dest_guid, dest_name, _, _, _, spell_name = CombatLogGetCurrentEventInfo()
+
+  -- TODO: REMOVE ME!!!!
+  if test_summon then
+    print("------")
+    print("COMBAT_LOG_EVENT, SUBEVENT: " .. subevent)
+    if spell_name then
+      print("COMBAT_LOG_EVENT, SPELL_NAME: " .. spell_name)
+    end
+    if dest_guid then 
+    print("COMBAT_LOG_EVENT, DEST_GUID: " .. dest_guid)
+    end
+    if dest_name then
+      print("COMBAT_LOG_EVENT, DEST_NAME: " .. dest_name)
+    end
+    print("------")
+  end
+
   -- save info of dead target
   -- TODO: Code always runs even if im not the one fighting; is this a problem?
   if subevent == core.UNIT_DIED then 
     killed_target.time = curr_time
     killed_target.name = dest_name 
     killed_target.location = core.getPlayerZone()
-    if string.find(dest_guid, "Player") ~= nil then -- non npc?
+    if is_target_player() then -- non npc?
       local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
       killed_target.race = race_name
       killed_target.class = class_name
@@ -275,6 +318,12 @@ local channel_start_frame = CreateFrame("Frame")
 channel_start_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 channel_start_frame:SetScript("OnEvent", function(self,event, ...)
   local spell_name, _, _, start_time = ChannelInfo()  
+
+  -- TODO: REMOVE ME
+  if test_summon then
+    print("CHANNEL_START")
+  end
+
   if spell_name == core.DRAIN_SOUL then 
     drain_soul_data.casting = true
     drain_soul_data.target_guid = current_target_guid
@@ -288,6 +337,9 @@ channel_end_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   local _, _, spell_id = ... 
   local spell_name = GetSpellInfo(spell_id)
+  if test_summon then
+    print("CHANNEL_STOP")
+  end
   if spell_name == core.DRAIN_SOUL then 
     reset_drain_soul_data()
   end
@@ -304,6 +356,11 @@ local item_frame = CreateFrame("Frame")
 item_frame:RegisterEvent("BAG_UPDATE")
 item_frame:SetScript("OnEvent",
   function(self, event, ...)
+    -- TODO: REMOVE ME!
+    if test_summon then
+      print("BAG_UPDATE")
+    end
+   
     if shard_added then
       shard_added = false
       local bag_number = next_open_slot['bag_number']
@@ -329,7 +386,7 @@ item_frame:SetScript("OnEvent",
       locked_stone_iid = {}
       stone_deleted = false
     end
-   
+
     -- update next open slot
     update_next_open_bag_slot()
   end)
@@ -443,9 +500,14 @@ local cast_success_frame = CreateFrame("Frame")
 cast_success_frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 cast_success_frame:SetScript("OnEvent", 
   function(self,event,...)
-    local unit_target, cast_guid, spell_id = ...
+    local _, _, spell_id = ...
     local spell_name = GetSpellInfo(spell_id)
     local consumed_stone_iid = is_consume_stone_spell(spell_id)
+
+    -- TODO: REMOVE ME
+    if test_summon then
+        print("SPELLCAST_SUCCEEDED - CAST SUMMON")
+    end
 
     -- conjure stone 
     if shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) and not stone_created then
@@ -476,16 +538,27 @@ cast_success_frame:SetScript("OnEvent",
   end)
 
 
---[[ Message group who is getting the SS being cast. ]]--
+--[[ Message group who is getting the SS/summon being cast. ]]--
 local cast_sent_frame = CreateFrame("Frame")
 cast_sent_frame:RegisterEvent("UNIT_SPELLCAST_SENT")
 cast_sent_frame:SetScript("OnEvent", 
   function(self,event,...)
     local _, target, _, spell_id = ...
     local ss_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
+
+    -- TODO: REMOVE ME
+    if test_summon and spell_id == core.RITUAL_OF_SUMM_SID then
+      print("SPELLCAST_SENT (FOR SUMMON)")
+    end
+
     if ss_iid ~= nil then 
       local stone_data = stone_mapping[ss_iid]
       local mssg = string.format(core.SS_MESSAGE, target, stone_data.name)
+      message_active_party(mssg)
+
+    elseif spell_id == core.RITUAL_OF_SUMM_SID and is_target_player() then
+      local shard_data = get_next_shard_data()
+      local mssg = string.format(core.SUMMON_MESSAGE, current_target_name, shard_data.name)
       message_active_party(mssg)
     end
   end)
@@ -504,25 +577,74 @@ delete_item_frame:SetScript("OnEvent",
  
 
 
+-- TODO: ******* TESTING ******* REMOVE MEEEEEEE
+local sum_cancel_frame = CreateFrame("Frame")
+sum_cancel_frame:RegisterEvent("CANCEL_SUMMON")
+sum_cancel_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    if test_summon then
+      print("---CANCEL SUMMON---")
+      print("---CANCEL SUMMON---")
+      print("---CANCEL SUMMON---")
+      print("---CANCEL SUMMON---")
+      print("---CANCEL SUMMON---")
+    end
+  end)
+local confirm_sum_frame = CreateFrame("Frame")
+confirm_sum_frame:RegisterEvent("CONFIRM_SUMMON")
+confirm_sum_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    if test_summon then
+      print("---CONFIRM SUMMON---")
+      print("---CONFIRM SUMMON---")
+      print("---CONFIRM SUMMON---")
+      print("---CONFIRM SUMMON---")
+      print("---CONFIRM SUMMON---")
+    end
+  end)
+local spell_conf_frame = CreateFrame("Frame")
+spell_conf_frame:RegisterEvent("SPELL_CONFIRMATION_PROMPT")
+spell_conf_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    if test_summon then
+      print("SPELL_CONF_PROMPT")
+    end
+  end)
+local spell_conf_not_frame = CreateFrame("Frame")
+spell_conf_not_frame:RegisterEvent("SPELL_CONFIRMATION_TIMEOUT")
+spell_conf_not_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    if test_summon then
+      print("SPELL_CONF_TIMEOUT_PROMPT")
+    end
+  end)
+local cast_stopped_frame = CreateFrame("Frame")
+cast_stopped_frame:RegisterEvent("UNIT_SPELLCAST_STOP")
+cast_stopped_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    if test_summon then
+      print("SPELLCAST_STOP")
+    end
+  end)
+-- TODO: ******* TESTING ******* REMOVE MEEEEE
+
+
 
 -- TODO: On summon, dont set to nil; figure this out
 -- ---> STOP_CHANNELING > BAG_UPDATE; on successful summon
 -- ---> Can have bool is_summoning while channeling; 
---
--- TODO: When consuming...
---    X. SS: In raid/party: <target_name>, the soul of <killed_target_name> is yours.
---    X. HS: Print message to self (for now)
---    3. Summon: In raid/party: Summoning <target_name> with the soul of <killed_target_name>
 
--- TODO: Problem: Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
-    --  >> Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
-    --  >> Would this occur before or after mapping? 
 -- TODO: Add little UI option that always shows next available soul (like a little square somewhere)
 --  **** Can also have text there.. e.g. summoning pet/ creating hs/ with soul of.. w/e can add all these as options
+-- TODO: Update messages, if alliance add information... etc..
 -- TODO: List of all warlocks with available SS?
 
-
-
+-- TODO: BUG - - - - - - - - - - - - - - - - - - 
+-- ---> Stop casting drain soul and target dies.. if timing is correct get shard but dont record it
+-- ---> Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
+--        >> Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
+--             Would this occur before or after mapping? 
+--
 -- TODO: TESTING - - - - - - - - - - - - - - - -
 -- ---> Testing saving data between sessions
 -- ---> Drain_soul/shadowburned target that does NOT yield xp/honor shouldn't get mapped || mess anything else up!
