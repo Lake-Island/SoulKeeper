@@ -416,10 +416,12 @@ reload_frame:SetScript("OnEvent",
     -- TODO: Test; comment
     current_time = GetServerTime()
     stone_mapping_expr_time = logout_time + core.FIFTEEN_MINUTES
-    if current_time > stone_map_expr_time then
+    if current_time > stone_mapping_expr_time then
       print("EXPIRED: Clearing stone_mapping data...")
       stone_mapping = {}
     end
+
+    CastSpellByID(core.FIND_HERBS_SID)
   end)
 
 

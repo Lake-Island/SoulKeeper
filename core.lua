@@ -6,6 +6,7 @@ core.CHAT_TYPE_RAID = "RAID"
 core.CHAT_TYPE_PARTY = "PARTY"
 core.FIFTEEN_MINUTES = 900 -- seconds
 core.SS_MESSAGE = "%s, the soul of <%s> is yours!"
+core.FIND_HERBS_SID = 2383
 
 -- Bags
 core.SLOT_NULL  = 666
