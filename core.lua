@@ -2,7 +2,10 @@ local _, core = ...
 
 core.HS = "HS"
 core.NON_HS = "NON-HS"
+core.CHAT_TYPE_RAID = "RAID"
+core.CHAT_TYPE_PARTY = "PARTY"
 core.FIFTEEN_MINUTES = 900 -- seconds
+core.SS_MESSAGE = "%s, the soul of <%s> is yours!"
 
 -- Bags
 core.SLOT_NULL  = 666

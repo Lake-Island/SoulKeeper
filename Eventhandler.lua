@@ -195,13 +195,24 @@ end
 
 
 local function is_consume_stone_spell(spell_id)
-  local hs_stone_iid = core.CONSUME_HS_SID_TO_IID[spell_id] 
-  local ss_stone_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
-  if hs_stone_iid ~= nil then return hs_stone_iid
-  elseif ss_stone_iid ~=nil then return ss_stone_iid
+  local hs_iid = core.CONSUME_HS_SID_TO_IID[spell_id] 
+  local ss_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
+  if hs_iid ~= nil then return hs_iid
+  elseif ss_iid ~=nil then return ss_iid
   else return nil end
 end
 
+
+--[[ Display message to raid, party if no raid, nothing otherwise. ]]--
+local function message_active_party(mssg)
+  if IsInRaid() then
+    SendChatMessage(mssg, core.CHAT_TYPE_RAID)
+  elseif IsInGroup() then
+    SendChatMessage(mssg, core.CHAT_TYPE_PARTY)
+  else
+    print("Not currently in a party/raid")
+  end
+end
 
 
 local current_target_frame = CreateFrame("Frame")
@@ -400,7 +411,6 @@ local reload_frame = CreateFrame("Frame")
 reload_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 reload_frame:SetScript("OnEvent", 
   function(self,event,...)
-
     set_default_shard_data()
 
     -- TODO: Test; comment
@@ -435,7 +445,7 @@ cast_success_frame:SetScript("OnEvent",
     local spell_name = GetSpellInfo(spell_id)
     local consumed_stone_iid = is_consume_stone_spell(spell_id)
 
-    -- conjure stone spells
+    -- conjure stone 
     if shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) and not stone_created then
       local shard_data = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
@@ -445,20 +455,36 @@ cast_success_frame:SetScript("OnEvent",
 
       -- Avoid duplicate execution when this function runs twice
       stone_created = true 
-      print("Created " .. stone_name .. " with the soul of --- " .. shard_data.name .. " ---")
+      print("Created " .. stone_name .. " with the soul of <" .. shard_data.name .. ">")
 
-    -- summon pet spells
+    -- summon pet 
     elseif shard_consuming_spell(spell_name, core.SUMMON_PET_NAMES) then
       local shard_data = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
 
-      print("Summoned " .. spell_name .. " with the soul of --- " .. shard_data.name .. " ---")
+      print("Summoned " .. spell_name .. " with the soul of <" .. shard_data.name .. ">")
 
+    -- consume HS/SS 
     elseif consumed_stone_iid ~= nil and stone_mapping[consumed_stone_iid] ~= nil then
       local stone_data = stone_mapping[consumed_stone_iid]
       stone_mapping[consumed_stone_iid] = nil
 
-      print("Consumed the soul of: " .. stone_data.name)
+      print("Consumed the soul of <" .. stone_data.name .. ">")
+    end
+  end)
+
+
+--[[ Message group who is getting the SS being cast. ]]--
+local cast_sent_frame = CreateFrame("Frame")
+cast_sent_frame:RegisterEvent("UNIT_SPELLCAST_SENT")
+cast_sent_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    local _, target, _, spell_id = ...
+    local ss_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
+    if ss_iid ~= nil then 
+      local stone_data = stone_mapping[ss_iid]
+      local mssg = string.format(core.SS_MESSAGE, target, stone_data.name)
+      message_active_party(mssg)
     end
   end)
 
@@ -482,8 +508,8 @@ delete_item_frame:SetScript("OnEvent",
 -- ---> Can have bool is_summoning while channeling; 
 --
 -- TODO: When consuming...
---    1. SS: In raid/party: <target_name>, the soul of <killed_target_name> is yours.
---    2. HS: Print message to self (for now)
+--    X. SS: In raid/party: <target_name>, the soul of <killed_target_name> is yours.
+--    X. HS: Print message to self (for now)
 --    3. Summon: In raid/party: Summoning <target_name> with the soul of <killed_target_name>
 
 -- TODO: Problem: Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
@@ -526,21 +552,14 @@ cast_start_frame:RegisterEvent("UNIT_SPELLCAST_START")
 cast_start_frame:SetScript("OnEvent", 
   function(self,event,...)
     local unit_target, cast_guid, spell_id = ...
-    local spell_name = GetSpellInfo(spell_id)
-    print("Name: " .. spell_name .. ", ID: " .. spell_id)
-
-    -- consuming health stone 
-    if ( stone_mapping[spell_name] ~= nil ) then
-      stone_data = stone_mapping[spell_name]
-      print("Consumed the soul of: " .. stone_data.name)
-
-    -- consuming soul stone
-    elseif ( stone_mapping[spell_id] ~= nil ) then
-      stone_data = stone_mapping[spell_id]
-      print("Consumed the soul of: " .. stone_data.name)
-    end
+    
+    mssg = "%s, the soul of <%s> is yours!"
+    print(string.format(mssg, "Krel", "Monkey"))
+    print("MY_NAME: " .. UnitName("player"))
+    print("TARGET_NAME: " .. UnitName("target"))
+    
   end)
 
-
 ]]--
+
 -- END
