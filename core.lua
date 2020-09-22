@@ -2,6 +2,7 @@ local _, core = ...
 
 core.HS = "HS"
 core.NON_HS = "NON-HS"
+core.FIFTEEN_MINUTES = 900 -- seconds
 
 -- Bags
 core.SLOT_NULL  = 666

@@ -12,11 +12,12 @@ killed_target = {
 
 current_target_guid = ""
 
+logout_time = GetServerTime()
+
 -- Mapping of data of saved souls to bag indices
 shard_mapping = { {}, {}, {}, {}, {} }
 
 -- map conjured stone item_ID to kill data 
--- TODO: Add logout time; on login check if exceeded 15m, wipe table if true
 stone_mapping = {}
 
 next_open_slot = {}
@@ -69,9 +70,7 @@ local function reset_drain_soul_data()
 end
 
 
--- TODO: >> When HS created.. check table for HS indexed by this total
--- ----> Update core SPELL_NAME_TO_ITEM_ID.. have subclass.. ['healthstone'] & ['other'] when HS you will index 
--- into it by the improved_hs_pts variable to save the mapping
+-- total points invested in improved healthstone talent
 local function get_total_pts_imp_hs()
     _, _, _, _, total_pts = GetTalentInfo(2,1,1)
     return total_pts
@@ -180,19 +179,36 @@ local function update_next_open_bag_slot()
     end
 end
 
+
+-- get item id of stone associated with conjure spell
+local function get_stone_item_id(spell_id, spell_name)
+  -- hs; query with pts in imp. hs
+  if core.CREATE_HS_SID[spell_id] ~= nil then
+    imp_hs_pts = get_total_pts_imp_hs() 
+    return core.SPELL_NAME_TO_ITEM_ID[core.HS][spell_name][imp_hs_pts]
+  -- non-hs
+  else
+    return core.SPELL_NAME_TO_ITEM_ID[core.NON_HS][spell_name]
+  end
+
+end
+
+
+local function is_consume_stone_spell(spell_id)
+  local hs_stone_iid = core.CONSUME_HS_SID_TO_IID[spell_id] 
+  local ss_stone_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
+  if hs_stone_iid ~= nil then return hs_stone_iid
+  elseif ss_stone_iid ~=nil then return ss_stone_iid
+  else return nil end
+end
+
+
+
 local current_target_frame = CreateFrame("Frame")
 current_target_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
 current_target_frame:SetScript("OnEvent",
   function(self, event)
     current_target_guid = UnitGUID("target")
-    --[[ TODO: Remove me! InGroup fires if also in raid
-    if (IsInGroup()) then
-      print("In a group!")
-    end
-    if (IsInRaid()) then
-      print("In a raid!")
-    end
-    ]]--
   end)
 
 
@@ -384,31 +400,25 @@ local reload_frame = CreateFrame("Frame")
 reload_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 reload_frame:SetScript("OnEvent", 
   function(self,event,...)
+
     set_default_shard_data()
+
+    -- TODO: Test; comment
+    current_time = GetServerTime()
+    stone_mapping_expr_time = logout_time + core.FIFTEEN_MINUTES
+    if current_time > stone_map_expr_time then
+      print("EXPIRED: Clearing stone_mapping data...")
+      stone_mapping = {}
+    end
   end)
 
 
--- get item id of stone associated with conjure spell
-local function get_stone_item_id(spell_id, spell_name)
-  -- hs; query with pts in imp. hs
-  if core.CREATE_HS_SID[spell_id] ~= nil then
-    imp_hs_pts = get_total_pts_imp_hs() 
-    return core.SPELL_NAME_TO_ITEM_ID[core.HS][spell_name][imp_hs_pts]
-  -- non-hs
-  else
-    return core.SPELL_NAME_TO_ITEM_ID[core.NON_HS][spell_name]
-  end
-
-end
-
-
-local function is_consume_stone_spell(spell_id)
-  local hs_stone_iid = core.CONSUME_HS_SID_TO_IID[spell_id] 
-  local ss_stone_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
-  if hs_stone_iid ~= nil then return hs_stone_iid
-  elseif ss_stone_iid ~=nil then return ss_stone_iid
-  else return nil end
-end
+local logout_frame = CreateFrame("Frame")
+logout_frame:RegisterEvent("PLAYER_LOGOUT")
+logout_frame:SetScript("OnEvent", 
+  function(self,event,...)
+    logout_time = GetServerTime()
+  end)
 
 
 --[[
@@ -467,11 +477,15 @@ delete_item_frame:SetScript("OnEvent",
 
 
 
--- TODO: Conjured items; 15m logout clear; even necessary?
-
 -- TODO: On summon, dont set to nil; figure this out
 -- ---> STOP_CHANNELING > BAG_UPDATE; on successful summon
--- ---> Can have bool is_summoning whiel channeling; 
+-- ---> Can have bool is_summoning while channeling; 
+--
+-- TODO: When consuming...
+--    1. SS: In raid/party: <target_name>, the soul of <killed_target_name> is yours.
+--    2. HS: Print message to self (for now)
+--    3. Summon: In raid/party: Summoning <target_name> with the soul of <killed_target_name>
+
 -- TODO: Problem: Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
     --  >> Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
     --  >> Would this occur before or after mapping? 
@@ -488,6 +502,8 @@ delete_item_frame:SetScript("OnEvent",
 -- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
 -- ---> SPELL_SUCCESS consuming SS/HS.. Test with SS consumption; swap with healthstones/different healthstones
 -- ---> Destroy stuff
+-- ---> Logout and test on relogin conjured items/stones still the same? What about after 15min?
+-- ---> 15min logout -- does data get cleared? Right before 15m mark, right after 15m mark.
 --
 -- TODO: REFACTOR
 -- ---> Refactor to no longer use spell_name is SPELLCAST_SUCCEED & get_stone_id.. use ID's instead.. would require refactoring core
