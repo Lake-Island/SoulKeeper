@@ -1,5 +1,8 @@
 local _, core = ...
 
+-- TODO: TEMP
+drain_soul_end_t = nil
+
 -- TODO: Put somewhere else?
 enable_chat = false
 
@@ -17,6 +20,10 @@ current_target_guid = nil
 current_target_name = nil
 
 logout_time = nil
+summon_details = {
+  end_time = nil,
+  location = nil
+}
 
 -- Mapping of data of saved souls to bag indices
 shard_mapping = { {}, {}, {}, {}, {} }
@@ -30,6 +37,7 @@ locked_shards = {}
 shard_added = false
 shard_deleted = false
 stone_created = false
+pet_summoned = false
 
 locked_stone_iid = {}
 stone_deleted = false
@@ -45,6 +53,15 @@ drain_soul_data = {
   casting = false,
   target_guid = ""
 }
+
+
+local function reset_summon_details()
+  summon_details = {
+    end_time = nil,
+    location = nil
+  }
+end
+
 
 local function reset_shadowburn_data()
   shadowburn_data = {
@@ -309,8 +326,7 @@ end)
 local channel_start_frame = CreateFrame("Frame")
 channel_start_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 channel_start_frame:SetScript("OnEvent", function(self,event, ...)
-  local spell_name, _, _, start_time = ChannelInfo()  
-
+  local spell_name, _, spell_id, start_time = ChannelInfo()  
   if spell_name == core.DRAIN_SOUL then 
     drain_soul_data.casting = true
     drain_soul_data.target_guid = current_target_guid
@@ -325,10 +341,38 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   local _, _, spell_id = ... 
   local spell_name = GetSpellInfo(spell_id)
   if spell_name == core.DRAIN_SOUL then 
+    drain_soul_end_t = GetTime()
     reset_drain_soul_data()
+  elseif spell_name == core.RITUAL_OF_SUMM then
+    summon_details.end_time = GetTime()
   end
 end)
 
+-- TODO: REMOVE ME!!!
+temp_total_summons = 0
+temp_total_diff_time = 0
+-- TODO: REMOVE ME!!!
+
+
+--[[ TODO: MOVE ME!
+
+]]--
+local function drain_soul_batched(curr_time) 
+  if drain_soul_end_t == nil then return false end
+  
+  difference = curr_time - drain_soul_end_t
+  drain_soul_end_t = nil
+  if difference <= core.DRAIN_SOUL_DIFF then
+    return true
+  end
+
+  -- TODO: REMOVE ME!!!! --------------------
+  print("DRAIN_SOUL_BATCHED")
+  print("DIFFERENCE: " .. difference)
+  -- TODO: REMOVE ME!!!! --------------------
+
+  return false
+end
 
 --[[
   On BAG_UPDATE (inventory change), check if item was a newly added soul shard. 
@@ -340,7 +384,39 @@ local item_frame = CreateFrame("Frame")
 item_frame:RegisterEvent("BAG_UPDATE")
 item_frame:SetScript("OnEvent",
   function(self, event, ...)
-    if shard_added then
+    local curr_time = GetTime()
+
+    -- TODO: Helper function?
+    -- TODO: Set core.SUCCESSFUL_SUMMON_DIFF to whatever the average difference is
+    if summon_details.end_time ~= nil then
+      difference = curr_time - summon_details.end_time
+
+      -- TODO: REMOVE ME -----------------------------------
+      print("BAG_UPDATE_TIME: " .. curr_time)
+      print("SUMMON_END_TIME: " .. summon_details.end_time)
+      print("DIFFERENCE: " .. difference)
+      temp_total_summons = temp_total_summons + 1
+      temp_total_diff_time = temp_total_diff_time + difference
+      avg_diff = temp_total_diff_time / temp_total_summons
+      print("AVERAGE_DIFFERENCE: " .. avg_diff)
+      -- TODO: REMOVE ME -----------------------------------
+
+      if difference <= core.SUCCESSFUL_SUMMON_DIFF then 
+        -- TODO: REMOVE ME -----------------------------------
+        local curr_shard_data = shard_mapping[summon_details.location.bag][summon_details.location.index] 
+        print("Successful summon; Removing soul: " .. curr_shard_data.name)
+        -- TODO: REMOVE ME -----------------------------------
+
+        shard_mapping[summon_details.location.bag][summon_details.location.index] = nil
+      end
+
+      reset_summon_details()
+    end
+
+    -- TODO: Or drain soul was cast < 1 second ago?
+    -- TODO: Helper function?
+    if shard_added or drain_soul_batched(curr_time) then
+      print("SHARD_ADDED") -- TODO: REMOVE ME!!!
       shard_added = false
       local bag_number = next_open_slot['bag_number']
       local shard_index = next_open_slot['open_index']
@@ -364,6 +440,10 @@ item_frame:SetScript("OnEvent",
       stone_mapping[locked_stone_iid] = nil
       locked_stone_iid = {}
       stone_deleted = false
+    end
+
+    if pet_summoned then
+      pet_summoned = false
     end
 
     -- update next open slot
@@ -487,12 +567,12 @@ cast_success_frame:SetScript("OnEvent",
       print("Created " .. stone_name .. " with the soul of <" .. shard_data.name .. ">")
 
     -- summon pet 
-    elseif shard_consuming_spell(spell_name, core.SUMMON_PET_NAMES) then
+    elseif shard_consuming_spell(spell_name, core.SUMMON_PET_NAMES) and not pet_summoned then
       local shard_data = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
 
-      -- TODO: BUG --- THIS RUNS TWICE SOMETIMES
-      print("Summoned " .. spell_name .. " with the soul of <" .. shard_data.name .. ">")
+      pet_summoned = true
+      print("Cast " .. spell_name .. " with the soul of <" .. shard_data.name .. ">")
 
     -- consume HS/SS 
     elseif consumed_stone_iid ~= nil and stone_mapping[consumed_stone_iid] ~= nil then
@@ -521,6 +601,8 @@ cast_sent_frame:SetScript("OnEvent",
       local shard_data = get_next_shard_data()
       local mssg = string.format(core.SUMMON_MESSAGE, current_target_name, shard_data.name)
       message_active_party(mssg)
+
+      summon_details.location = find_next_shard_location()
     end
   end)
 
@@ -538,12 +620,8 @@ delete_item_frame:SetScript("OnEvent",
  
 
 
--- TODO: On summon, dont set to nil; figure this out
--- ---> STOP_CHANNELING > BAG_UPDATE; on successful summon
---    ----> Check if times are within 1 second of eachother?
---    ----> Test by printing time of stop_channel and bug update when cast summon.. see EXACT time difference
---            over many attempts
--- ---> Can have bool is_summoning while channeling; 
+-- TODO: Summoning: Find average difference between channel_stop and bag_update on successful summons
+-- ------> Update shard mappping to remove shard only when this is met
 --
 -- TODO: UI
 --  1. Frame that says 'next soul is <..>' that user can move around and resize
@@ -557,7 +635,6 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: Custom message can be written by user through console
 
 -- TODO: BUG - - - - - - - - - - - - - - - - - - 
--- ---> spell batching: Stop casting drain soul and target dies.. if timing is correct get shard but dont record it
 -- ---> Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
 --        >> Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
 --             Would this occur before or after mapping? 
@@ -571,6 +648,9 @@ delete_item_frame:SetScript("OnEvent",
 -- ---> Destroy stuff
 -- ---> Logout and test on relogin conjured items/stones still the same? What about after 15min?
 -- ---> 15min logout -- does data get cleared? Right before 15m mark, right after 15m mark.
+--        > Also test going in/out of dungeons after a while, etc... randomly died in AQ saw the clear message
+-- ---> Summoning pet: Ensure it doesn't run twice
+-- ---> Drain_soul batching solution
 --
 -- TODO: REFACTOR
 -- ---> Refactor to no longer use spell_name is SPELLCAST_SUCCEED & get_stone_id.. use ID's instead.. would require refactoring core
@@ -583,11 +663,28 @@ delete_item_frame:SetScript("OnEvent",
 
 -- TODO: FOR TESTING -- REMOVE ME!!!!
 --[[
+t1 = nil
+t2 = nil
 local test_frame = CreateFrame("Frame")
 test_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
 test_frame:SetScript("OnEvent",
   function(self, event)
-    --print_target_debuffs()
+    print("ServerTime: " .. GetServerTime())
+    print("Uptime: " .. GetTime())
+    if t1 == nil then 
+      t1 = GetTime()
+    elseif t2 == nil then
+      t2 = GetTime()
+      print("T1: " .. t1)
+      print("T2: " .. t2)
+      difference = t2-t1
+      print("DIFFERENCE: " .. difference)
+      if difference < 1 then
+        print("DIFFERENCE LESS THAN 1!")
+      end
+      t1 = nil
+      t2 = nil
+    end
   end)
 
 local cast_start_frame = CreateFrame("Frame")

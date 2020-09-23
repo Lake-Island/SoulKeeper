@@ -10,6 +10,8 @@ core.SUMMON_MESSAGE = "Summoning %s with the soul of <%s>, please assist!"
 core.FIFTEEN_MINUTES = 900 -- seconds
 core.FIND_HERBS_SID = 2383
 core.RITUAL_OF_SUMM_SID = 698
+core.SUCCESSFUL_SUMMON_DIFF  = 1 -- seconds
+core.DRAIN_SOUL_DIFF = 1 -- seconds
 
 -- Bags
 core.SLOT_NULL  = 666
@@ -20,6 +22,7 @@ core.NORMAL_BAG_TYPE = 0
 -- Spells
 core.SOUL_SHARD_ID = 6265
 core.DRAIN_SOUL = "Drain Soul"
+core.RITUAL_OF_SUMM = "Ritual of Summoning"
 core.CONJURE_STONE_NAMES = {
   HS = "Create Healthstone",
   SS = "Create Soulstone",
