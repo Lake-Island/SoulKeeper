@@ -1,10 +1,7 @@
 local _, core = ...
 
--- TODO: REMOVE ME********
-test_summon = false
--- TODO: REMOVE ME********
-
-enable_chat = true
+-- TODO: Put somewhere else?
+enable_chat = false
 
 -- data associated with soul shard
 killed_target = {
@@ -19,7 +16,7 @@ killed_target = {
 current_target_guid = nil
 current_target_name = nil
 
-logout_time = GetServerTime()
+logout_time = nil
 
 -- Mapping of data of saved souls to bag indices
 shard_mapping = { {}, {}, {}, {}, {} }
@@ -110,10 +107,6 @@ local function reset_mapping_data()
 end
 core.reset_mapping_data = reset_mapping_data
 
-local function toggle_debug()
-  test_summon = not test_summon
-end
-core.toggle_debug = toggle_debug
 
 local function toggle_chat()
   enable_chat = not enable_chat
@@ -133,7 +126,9 @@ end
 
 
 --[[ Return the bag number and slot of next shard that will be consumed --]]
-local function find_next_shard()
+-- TODO: Can add confirmation to check  actual bag_slot if shard exists there,
+-- otherwise delete data from mapping and run again?
+local function find_next_shard_location()
   local next_shard = { bag = core.SLOT_NULL, index = core.SLOT_NULL }
   for bag_num, _ in ipairs(shard_mapping) do 
     for bag_index, _ in pairs(shard_mapping[bag_num]) do
@@ -152,7 +147,7 @@ end
 
 --[[ Return the data of the next shard from inventory ]]--
 local function get_next_shard_data()
-  next_shard_location = find_next_shard()
+  next_shard_location = find_next_shard_location()
   if next_shard_location.bag == core.SLOT_NULL then -- prevents duplicate executions
     return nil
   end
@@ -213,7 +208,6 @@ local function get_stone_item_id(spell_id, spell_name)
   else
     return core.SPELL_NAME_TO_ITEM_ID[core.NON_HS][spell_name]
   end
-
 end
 
 
@@ -240,6 +234,20 @@ local function message_active_party(mssg)
 end
 
 
+--[[ Reset stone data if logged out more than 15min. ]]--
+local function reset_expired_stone_mapping()
+  if logout_time ~= nil then
+    current_time = GetServerTime()
+    stone_mapping_expr_time = logout_time + core.FIFTEEN_MINUTES
+    if current_time > stone_mapping_expr_time then
+      print("EXPIRED: Clearing stone_mapping data...")
+      stone_mapping = {}
+    end
+    logout_time = nil
+  end
+end
+
+
 local current_target_frame = CreateFrame("Frame")
 current_target_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
 current_target_frame:SetScript("OnEvent",
@@ -258,22 +266,6 @@ combat_log_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 combat_log_frame:SetScript("OnEvent", function(self,event)
   local curr_time = GetTime()
   local _, subevent, _, _, _, _, _, dest_guid, dest_name, _, _, _, spell_name = CombatLogGetCurrentEventInfo()
-
-  -- TODO: REMOVE ME!!!!
-  if test_summon then
-    print("------")
-    print("COMBAT_LOG_EVENT, SUBEVENT: " .. subevent)
-    if spell_name then
-      print("COMBAT_LOG_EVENT, SPELL_NAME: " .. spell_name)
-    end
-    if dest_guid then 
-    print("COMBAT_LOG_EVENT, DEST_GUID: " .. dest_guid)
-    end
-    if dest_name then
-      print("COMBAT_LOG_EVENT, DEST_NAME: " .. dest_name)
-    end
-    print("------")
-  end
 
   -- save info of dead target
   -- TODO: Code always runs even if im not the one fighting; is this a problem?
@@ -319,11 +311,6 @@ channel_start_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 channel_start_frame:SetScript("OnEvent", function(self,event, ...)
   local spell_name, _, _, start_time = ChannelInfo()  
 
-  -- TODO: REMOVE ME
-  if test_summon then
-    print("CHANNEL_START")
-  end
-
   if spell_name == core.DRAIN_SOUL then 
     drain_soul_data.casting = true
     drain_soul_data.target_guid = current_target_guid
@@ -337,9 +324,6 @@ channel_end_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   local _, _, spell_id = ... 
   local spell_name = GetSpellInfo(spell_id)
-  if test_summon then
-    print("CHANNEL_STOP")
-  end
   if spell_name == core.DRAIN_SOUL then 
     reset_drain_soul_data()
   end
@@ -356,11 +340,6 @@ local item_frame = CreateFrame("Frame")
 item_frame:RegisterEvent("BAG_UPDATE")
 item_frame:SetScript("OnEvent",
   function(self, event, ...)
-    -- TODO: REMOVE ME!
-    if test_summon then
-      print("BAG_UPDATE")
-    end
-   
     if shard_added then
       shard_added = false
       local bag_number = next_open_slot['bag_number']
@@ -461,23 +440,14 @@ bag_slot_unlock_frame:SetScript("OnEvent",
   end)
 
 
---[[ 
-  On game start/reload default init unmapped shard data.
---]]
 local reload_frame = CreateFrame("Frame")
 reload_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 reload_frame:SetScript("OnEvent", 
   function(self,event,...)
     set_default_shard_data()
+    reset_expired_stone_mapping()
 
-    -- TODO: Test; comment
-    current_time = GetServerTime()
-    stone_mapping_expr_time = logout_time + core.FIFTEEN_MINUTES
-    if current_time > stone_mapping_expr_time then
-      print("EXPIRED: Clearing stone_mapping data...")
-      stone_mapping = {}
-    end
-
+    -- TODO: REMOVE ME!!!! (or just add for Krel :))
     CastSpellByID(core.FIND_HERBS_SID)
   end)
 
@@ -504,11 +474,6 @@ cast_success_frame:SetScript("OnEvent",
     local spell_name = GetSpellInfo(spell_id)
     local consumed_stone_iid = is_consume_stone_spell(spell_id)
 
-    -- TODO: REMOVE ME
-    if test_summon then
-        print("SPELLCAST_SUCCEEDED - CAST SUMMON")
-    end
-
     -- conjure stone 
     if shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) and not stone_created then
       local shard_data = get_next_shard_data()
@@ -526,6 +491,7 @@ cast_success_frame:SetScript("OnEvent",
       local shard_data = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.index] = nil
 
+      -- TODO: BUG --- THIS RUNS TWICE SOMETIMES
       print("Summoned " .. spell_name .. " with the soul of <" .. shard_data.name .. ">")
 
     -- consume HS/SS 
@@ -545,11 +511,6 @@ cast_sent_frame:SetScript("OnEvent",
   function(self,event,...)
     local _, target, _, spell_id = ...
     local ss_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
-
-    -- TODO: REMOVE ME
-    if test_summon and spell_id == core.RITUAL_OF_SUMM_SID then
-      print("SPELLCAST_SENT (FOR SUMMON)")
-    end
 
     if ss_iid ~= nil then 
       local stone_data = stone_mapping[ss_iid]
@@ -577,70 +538,26 @@ delete_item_frame:SetScript("OnEvent",
  
 
 
--- TODO: ******* TESTING ******* REMOVE MEEEEEEE
-local sum_cancel_frame = CreateFrame("Frame")
-sum_cancel_frame:RegisterEvent("CANCEL_SUMMON")
-sum_cancel_frame:SetScript("OnEvent", 
-  function(self,event,...)
-    if test_summon then
-      print("---CANCEL SUMMON---")
-      print("---CANCEL SUMMON---")
-      print("---CANCEL SUMMON---")
-      print("---CANCEL SUMMON---")
-      print("---CANCEL SUMMON---")
-    end
-  end)
-local confirm_sum_frame = CreateFrame("Frame")
-confirm_sum_frame:RegisterEvent("CONFIRM_SUMMON")
-confirm_sum_frame:SetScript("OnEvent", 
-  function(self,event,...)
-    if test_summon then
-      print("---CONFIRM SUMMON---")
-      print("---CONFIRM SUMMON---")
-      print("---CONFIRM SUMMON---")
-      print("---CONFIRM SUMMON---")
-      print("---CONFIRM SUMMON---")
-    end
-  end)
-local spell_conf_frame = CreateFrame("Frame")
-spell_conf_frame:RegisterEvent("SPELL_CONFIRMATION_PROMPT")
-spell_conf_frame:SetScript("OnEvent", 
-  function(self,event,...)
-    if test_summon then
-      print("SPELL_CONF_PROMPT")
-    end
-  end)
-local spell_conf_not_frame = CreateFrame("Frame")
-spell_conf_not_frame:RegisterEvent("SPELL_CONFIRMATION_TIMEOUT")
-spell_conf_not_frame:SetScript("OnEvent", 
-  function(self,event,...)
-    if test_summon then
-      print("SPELL_CONF_TIMEOUT_PROMPT")
-    end
-  end)
-local cast_stopped_frame = CreateFrame("Frame")
-cast_stopped_frame:RegisterEvent("UNIT_SPELLCAST_STOP")
-cast_stopped_frame:SetScript("OnEvent", 
-  function(self,event,...)
-    if test_summon then
-      print("SPELLCAST_STOP")
-    end
-  end)
--- TODO: ******* TESTING ******* REMOVE MEEEEE
-
-
-
 -- TODO: On summon, dont set to nil; figure this out
 -- ---> STOP_CHANNELING > BAG_UPDATE; on successful summon
+--    ----> Check if times are within 1 second of eachother?
+--    ----> Test by printing time of stop_channel and bug update when cast summon.. see EXACT time difference
+--            over many attempts
 -- ---> Can have bool is_summoning while channeling; 
+--
+-- TODO: UI
+--  1. Frame that says 'next soul is <..>' that user can move around and resize
+--  ---> Can also update to say 'creating HS with soul of "x"/summonig pet with soul of "y"'; can then 
+--       go back to saying 'next available soul' or w/e
+--  2. Hover over shard/stone will display name of soul
 
--- TODO: Add little UI option that always shows next available soul (like a little square somewhere)
---  **** Can also have text there.. e.g. summoning pet/ creating hs/ with soul of.. w/e can add all these as options
 -- TODO: Update messages, if alliance add information... etc..
+-- TODO: Enslave demon; make sure all shard using spells accounted for; be sure to test them
 -- TODO: List of all warlocks with available SS?
+-- TODO: Custom message can be written by user through console
 
 -- TODO: BUG - - - - - - - - - - - - - - - - - - 
--- ---> Stop casting drain soul and target dies.. if timing is correct get shard but dont record it
+-- ---> spell batching: Stop casting drain soul and target dies.. if timing is correct get shard but dont record it
 -- ---> Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
 --        >> Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
 --             Would this occur before or after mapping? 
@@ -658,6 +575,8 @@ cast_stopped_frame:SetScript("OnEvent",
 -- TODO: REFACTOR
 -- ---> Refactor to no longer use spell_name is SPELLCAST_SUCCEED & get_stone_id.. use ID's instead.. would require refactoring core
 -- ---> Core code.. label magic numbers... e.g. (MINOR_SS_ITEM_ID = 66666), etc..
+-- ---> find_next_shard_location() ... Can add confirmation to check  actual bag_slot if shard exists there,
+-- otherwise delete data from mapping and run again?
 
 
 
