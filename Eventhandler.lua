@@ -1,6 +1,6 @@
 local _, core = ...
 
--- TODO: TEMP
+-- TODO: TEMP -- or is it?
 drain_soul_end_t = nil
 
 -- TODO: Put somewhere else?
@@ -115,6 +115,30 @@ local function set_default_shard_data()
     end
   end 
 end
+
+
+--[[ 
+ TODO: REMOVE ME ------------------------------------------------------
+  Sets shard data to nubmers for testting
+]]--
+local function set_shard_data()
+  local count = 1
+  shard_mapping = { {}, {}, {}, {}, {} }
+  for bag_num = 0, core.MAX_BAG_INDEX, 1 do
+    num_bag_slots = GetContainerNumSlots(bag_num)
+    for slot_num = 1, num_bag_slots, 1 do
+      curr_item_id = GetContainerItemID(bag_num, slot_num)
+      curr_shard_slot = shard_mapping[bag_num+1][slot_num]
+      -- unmapped soul shard; map it.
+      if curr_item_id == core.SOUL_SHARD_ID then
+        local test_data = { name=string.format("shard_%d", count) }
+        count = count + 1
+        shard_mapping[bag_num+1][slot_num] = core.deep_copy(test_data)
+      end
+    end
+  end 
+end
+-- TODO: REMOVE ME ------------------------------------------------------
 
 
 local function reset_mapping_data()
@@ -348,11 +372,6 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   end
 end)
 
--- TODO: REMOVE ME!!!
-temp_total_summons = 0
-temp_total_diff_time = 0
--- TODO: REMOVE ME!!!
-
 
 --[[ TODO: MOVE ME!
 
@@ -387,24 +406,19 @@ item_frame:SetScript("OnEvent",
     local curr_time = GetTime()
 
     -- TODO: Helper function?
-    -- TODO: Set core.SUCCESSFUL_SUMMON_DIFF to whatever the average difference is
     if summon_details.end_time ~= nil then
-      difference = curr_time - summon_details.end_time
+      local difference = curr_time - summon_details.end_time
 
       -- TODO: REMOVE ME -----------------------------------
       print("BAG_UPDATE_TIME: " .. curr_time)
       print("SUMMON_END_TIME: " .. summon_details.end_time)
       print("DIFFERENCE: " .. difference)
-      temp_total_summons = temp_total_summons + 1
-      temp_total_diff_time = temp_total_diff_time + difference
-      avg_diff = temp_total_diff_time / temp_total_summons
-      print("AVERAGE_DIFFERENCE: " .. avg_diff)
       -- TODO: REMOVE ME -----------------------------------
 
       if difference <= core.SUCCESSFUL_SUMMON_DIFF then 
         -- TODO: REMOVE ME -----------------------------------
         local curr_shard_data = shard_mapping[summon_details.location.bag][summon_details.location.index] 
-        print("Successful summon; Removing soul: " .. curr_shard_data.name)
+        print("Successful summon --- Removing soul: " .. curr_shard_data.name)
         -- TODO: REMOVE ME -----------------------------------
 
         shard_mapping[summon_details.location.bag][summon_details.location.index] = nil
@@ -524,7 +538,9 @@ local reload_frame = CreateFrame("Frame")
 reload_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 reload_frame:SetScript("OnEvent", 
   function(self,event,...)
-    set_default_shard_data()
+    -- TODO: Change me back
+    --set_default_shard_data()
+    set_shard_data()
     reset_expired_stone_mapping()
 
     -- TODO: REMOVE ME!!!! (or just add for Krel :))
@@ -580,6 +596,14 @@ cast_success_frame:SetScript("OnEvent",
       stone_mapping[consumed_stone_iid] = nil
 
       print("Consumed the soul of <" .. stone_data.name .. ">")
+
+    elseif spell_id == core.RITUAL_OF_SUMM_SID then
+      summon_details.location = find_next_shard_location()
+
+      -- TODO: REMOVE ME ---------------
+      local summ_name = shard_mapping[summon_details.location.bag][summon_details.location.index] 
+      print("SPELLCAST_SUCCESS: SUMMON PREDICTING USE OF SOUL: " .. summ_name.name)
+      -- TODO: REMOVE ME ---------------
     end
   end)
 
@@ -601,8 +625,6 @@ cast_sent_frame:SetScript("OnEvent",
       local shard_data = get_next_shard_data()
       local mssg = string.format(core.SUMMON_MESSAGE, current_target_name, shard_data.name)
       message_active_party(mssg)
-
-      summon_details.location = find_next_shard_location()
     end
   end)
 
@@ -620,9 +642,6 @@ delete_item_frame:SetScript("OnEvent",
  
 
 
--- TODO: Summoning: Find average difference between channel_stop and bag_update on successful summons
--- ------> Update shard mappping to remove shard only when this is met
---
 -- TODO: UI
 --  1. Frame that says 'next soul is <..>' that user can move around and resize
 --  ---> Can also update to say 'creating HS with soul of "x"/summonig pet with soul of "y"'; can then 
@@ -633,6 +652,7 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: Enslave demon; make sure all shard using spells accounted for; be sure to test them
 -- TODO: List of all warlocks with available SS?
 -- TODO: Custom message can be written by user through console
+-- TODO: Blacklist (no summon list)
 
 -- TODO: BUG - - - - - - - - - - - - - - - - - - 
 -- ---> Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
@@ -651,6 +671,9 @@ delete_item_frame:SetScript("OnEvent",
 --        > Also test going in/out of dungeons after a while, etc... randomly died in AQ saw the clear message
 -- ---> Summoning pet: Ensure it doesn't run twice
 -- ---> Drain_soul batching solution
+-- ---> Test summong/moving around shards/etc..
+--        >> Move shards WHILE summong.. i.e. after initial spellcast sent
+--        >> QUESTION: Does it use the shard when SPELLCAST_SUCCESS || what if after success I move shards around? Which is used!
 --
 -- TODO: REFACTOR
 -- ---> Refactor to no longer use spell_name is SPELLCAST_SUCCEED & get_stone_id.. use ID's instead.. would require refactoring core

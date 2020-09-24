@@ -10,7 +10,7 @@ core.SUMMON_MESSAGE = "Summoning %s with the soul of <%s>, please assist!"
 core.FIFTEEN_MINUTES = 900 -- seconds
 core.FIND_HERBS_SID = 2383
 core.RITUAL_OF_SUMM_SID = 698
-core.SUCCESSFUL_SUMMON_DIFF  = 1 -- seconds
+core.SUCCESSFUL_SUMMON_DIFF  = 0.5 -- seconds
 core.DRAIN_SOUL_DIFF = 1 -- seconds
 
 -- Bags
