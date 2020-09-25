@@ -5,6 +5,7 @@
 ##SavedVariablesPerCharacter: shard_mapping, stone_mapping, logout_time
 
 Core.lua
+Tooltip.lua
 UI.lua
 Eventhandler.lua
 Main.lua

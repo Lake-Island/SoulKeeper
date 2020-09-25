@@ -1,11 +1,11 @@
-local _, core
+local _, core = ...
 
-local my_frame = CreateFrame("FRAME")
-my_frame.name = "SK_FRAME"
-my_frame:SetSize(100,20); -- width, height
-my_frame:SetPoint("CENTER", UIParent, "CENTER")
 
-my_frame:SetBackdrop(
+core.main_display_frame = CreateFrame("FRAME")
+core.main_display_frame.name = "SK_FRAME"
+core.main_display_frame:SetSize(100,20); -- width, height
+core.main_display_frame:SetPoint("CENTER", UIParent, "CENTER")
+core.main_display_frame:SetBackdrop(
     {
         bgFile = "Interface\\ChatFrame\\ChatFrameBackground",
         edgeFile = "Interface\\ChatFrame\\ChatFrameBackground",
@@ -14,13 +14,13 @@ my_frame:SetBackdrop(
         edgeSize = 2
     }
 )
-my_frame:SetBackdropColor(0, 0, 0, 0.8)
-my_frame:SetBackdropBorderColor(0, 0, 0, 0.8)
+core.main_display_frame:SetBackdropColor(0, 0, 0, 0.8)
+core.main_display_frame:SetBackdropBorderColor(0, 0, 0, 0.8)
 
-my_frame:SetMovable(true)
-my_frame:SetClampedToScreen(true)
+core.main_display_frame:SetMovable(true)
+core.main_display_frame:SetClampedToScreen(true)
 
-my_frame:SetScript(
+core.main_display_frame:SetScript(
     "OnMouseDown",
     function(self, button)
         if button == "LeftButton" then
@@ -28,12 +28,29 @@ my_frame:SetScript(
         end
     end
 )
-my_frame:SetScript("OnMouseUp", my_frame.StopMovingOrSizing)
+core.main_display_frame:SetScript("OnMouseUp", core.main_display_frame.StopMovingOrSizing)
 
-my_frame.text = my_frame:CreateFontString(nil, "OVERLAY")
-my_frame.text:SetFont("Fonts\\ARIALN.ttf", 10, "OUTLINE")
---my_frame.text:SetPoint("TOP", 0, -5)
-my_frame.text:SetText("Next soul: ")
+core.main_display_frame.text = core.main_display_frame:CreateFontString(nil, "OVERLAY")
+core.main_display_frame.text:SetFont("Fonts\\ARIALN.ttf", 10, "OUTLINE")
+core.main_display_frame.text:SetPoint("TOP", 0, -5)
+core.main_display_frame.text:SetText("Next soul: ")
 
-local closeButton = CreateFrame("Button", nil, my_frame, "UIPanelCloseButton")
-closeButton:SetPoint("TOPRIGHT", 5, 5)
+
+
+--[[
+-- XXX: Would rather have a 'hide' option through command line
+local closeButton = CreateFrame("Button", nil, core.main_display_frame, "UIPanelCloseButton")
+closeButton:SetPoint("TOPRIGHT", 2, 2)
+closeButton:SetSize(20,20)
+]]--
+
+
+-- TODO: UI
+--  1. Display: Frame that says 'next soul is <..>' that user can move around and resize
+--  ---> Can also update to say 'creating HS with soul of "x"/summonig pet with soul of "y"'; can then 
+--       go back to saying 'next available soul' or w/e
+--  ---> Lock/Unlock feature through console
+--  ---> Hide/show feature through console
+--  ---> Resize feature through console?
+--  2. Hover over shard/stone will display name of soul
+--  3. Option to display info on display (e.g. hide/unhide display); option to enable/disable shard consume info in print; 
