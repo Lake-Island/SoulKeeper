@@ -412,6 +412,37 @@ local function drain_soul_batched(curr_time)
   return false
 end
 
+
+--[[
+    Clears the associated consumed shard data on successful summon.
+--]]
+local function successful_summon_handler(curr_time)
+  if summon_details.end_time ~= nil then
+    local difference = curr_time - summon_details.end_time
+
+    -- TODO: REMOVE ME -----------------------------------
+    print("BAG_UPDATE_TIME: " .. curr_time)
+    print("SUMMON_END_TIME: " .. summon_details.end_time)
+    print("DIFFERENCE: " .. difference)
+    -- TODO: REMOVE ME -----------------------------------
+
+    if difference <= core.SUCCESSFUL_SUMMON_DIFF then 
+
+      -- TODO: REMOVE ME -----------------------------------
+      local curr_shard_data = shard_mapping[summon_details.location.bag][summon_details.location.slot] 
+      print("Successful summon --- Removing soul: " .. curr_shard_data.name)
+      -- TODO: REMOVE ME -----------------------------------
+
+      -- TODO: Reset locked shard data if shard consumed was locked
+      reset_consumed_locked_shard_data(summon_details.location)
+      shard_mapping[summon_details.location.bag][summon_details.location.slot] = nil
+    end
+
+    reset_summon_details()
+  end
+end
+
+
 --[[
   On BAG_UPDATE (inventory change), check if item was a newly added soul shard. 
   Save mapping of new shard to bag index. Update next open bag slot.
@@ -424,41 +455,9 @@ item_frame:SetScript("OnEvent",
   function(self, event, ...)
     local curr_time = GetTime()
 
-    -- TODO: Helper function?
-    if summon_details.end_time ~= nil then
-      local difference = curr_time - summon_details.end_time
+    successful_summon_handler(curr_time)
 
-      -- TODO: REMOVE ME -----------------------------------
-      print("BAG_UPDATE_TIME: " .. curr_time)
-      print("SUMMON_END_TIME: " .. summon_details.end_time)
-      print("DIFFERENCE: " .. difference)
-      -- TODO: REMOVE ME -----------------------------------
-
-      -- TODO: ERROR... NEED TO UPDATE summon_details.location anything bag locks/unlocks
-      --  otherwise if you move a shard during summon things break;
-      if difference <= core.SUCCESSFUL_SUMMON_DIFF then 
-
-        -- TODO: REMOVE ME -----------------------------------
-        local curr_shard_data = shard_mapping[summon_details.location.bag][summon_details.location.slot] 
-        print("Successful summon --- Removing soul: " .. curr_shard_data.name)
-        -- TODO: REMOVE ME -----------------------------------
-
-        -- TODO: Reset locked shard data if shard consumed was locked
-        reset_consumed_locked_shard_data(summon_details.location)
-        shard_mapping[summon_details.location.bag][summon_details.location.slot] = nil
-      end
-
-      reset_summon_details()
-    end
-
-    -- TODO: Or drain soul was cast < 1 second ago?
-    -- TODO: Helper function?
     if shard_added or drain_soul_batched(curr_time) then
-      -- TODO: REMOVE ME!!!
-      if shard_added then
-        print("SHARD_ADDED") 
-      end
-
       shard_added = false
       local bag_number = next_open_slot['bag_number']
       local shard_index = next_open_slot['open_index']
@@ -469,8 +468,6 @@ item_frame:SetScript("OnEvent",
     end
 
     -- unless deleted, shards never 'lock' during bag_update
-    -- TODO: TEST DELETING SHARD
-    -- TODO: TEST SWAPPIGN SHARDS
     if shard_deleted then 
       local del_shard = locked_shards[1]
       shard_mapping[del_shard.bag][del_shard.slot] = nil
@@ -546,6 +543,11 @@ bag_slot_unlock_frame:SetScript("OnEvent",
     local item_id = GetContainerItemID(bag, slot)
     bag = bag + 1
     if item_id == core.SOUL_SHARD_ID then
+
+      -- ensure shard location used in summon is up to date
+      if summon_details.location ~= nil then
+        summon_details.location = find_next_shard_location()
+      end
 
       -- select correct shard to insert from table of unlocked shards
       for index, curr_shard in pairs(locked_shards) do
