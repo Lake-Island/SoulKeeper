@@ -37,14 +37,6 @@ core.main_display_frame.text:SetText("Next soul: ")
 
 
 
---[[
--- XXX: Would rather have a 'hide' option through command line
-local closeButton = CreateFrame("Button", nil, core.main_display_frame, "UIPanelCloseButton")
-closeButton:SetPoint("TOPRIGHT", 2, 2)
-closeButton:SetSize(20,20)
-]]--
-
-
 -- TODO: UI
 --  1. Display: Frame that says 'next soul is <..>' that user can move around and resize
 --  ---> Can also update to say 'creating HS with soul of "x"/summonig pet with soul of "y"'; can then 
@@ -52,5 +44,6 @@ closeButton:SetSize(20,20)
 --  ---> Lock/Unlock feature through console
 --  ---> Hide/show feature through console
 --  ---> Resize feature through console?
---  2. Hover over shard/stone will display name of soul
+--  X. Hover over shard/stone will display name of soul
+--  2. Make message nice that hovers over soul shards... make alliance blue, horde red, raid boss orange, etc.
 --  3. Option to display info on display (e.g. hide/unhide display); option to enable/disable shard consume info in print; 

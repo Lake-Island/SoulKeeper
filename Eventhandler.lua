@@ -443,6 +443,39 @@ local function successful_summon_handler(curr_time)
 end
 
 
+local function bag_update_shard_handler()
+  if shard_added or drain_soul_batched(curr_time) then
+    shard_added = false
+    local bag_number = next_open_slot['bag_number']
+    local shard_index = next_open_slot['open_index']
+    local item_id = GetContainerItemID(bag_number, shard_index)
+    if item_id == core.SOUL_SHARD_ID then
+      shard_mapping[bag_number+1][shard_index] = core.deep_copy(killed_target)
+    end
+  end
+
+  -- unless deleted, shards never 'lock' during bag_update
+  if shard_deleted then 
+    local del_shard = locked_shards[1]
+    shard_mapping[del_shard.bag][del_shard.slot] = nil
+    shard_deleted = false
+    locked_shards =  {}
+  end
+end
+
+
+local function bag_update_stone_handler()
+  if stone_created then 
+    stone_created = false
+  end
+
+  if stone_deleted then
+    stone_mapping[locked_stone_iid] = nil
+    stone_deleted = false
+    locked_stone_iid = {}
+  end
+end
+
 --[[
   On BAG_UPDATE (inventory change), check if item was a newly added soul shard. 
   Save mapping of new shard to bag index. Update next open bag slot.
@@ -456,34 +489,8 @@ item_frame:SetScript("OnEvent",
     local curr_time = GetTime()
 
     successful_summon_handler(curr_time)
-
-    if shard_added or drain_soul_batched(curr_time) then
-      shard_added = false
-      local bag_number = next_open_slot['bag_number']
-      local shard_index = next_open_slot['open_index']
-      local item_id = GetContainerItemID(bag_number, shard_index)
-      if item_id == core.SOUL_SHARD_ID then
-        shard_mapping[bag_number+1][shard_index] = core.deep_copy(killed_target)
-      end
-    end
-
-    -- unless deleted, shards never 'lock' during bag_update
-    if shard_deleted then 
-      local del_shard = locked_shards[1]
-      shard_mapping[del_shard.bag][del_shard.slot] = nil
-      shard_deleted = false
-      locked_shards =  {}
-    end
-
-    if stone_created then 
-      stone_created = false
-    end
-
-    if stone_deleted then
-      stone_mapping[locked_stone_iid] = nil
-      stone_deleted = false
-      locked_stone_iid = {}
-    end
+    bag_update_shard_handler()
+    bag_update_stone_handler()
 
     if pet_summoned then
       pet_summoned = false
@@ -512,12 +519,7 @@ bag_slot_lock_frame:SetScript("OnEvent",
       curr_shard.bag = bag+1 -- bag 0 indexed
       curr_shard.slot = slot
       curr_shard.data = shard_mapping[curr_shard.bag][curr_shard.slot]
-      -- TODO: Deep copy curr_shard?
       table.insert(locked_shards, curr_shard)
-
-      -- TODO: What if I dont set it to nil?
-      -- >>> What about when I destroy it? Will the mapping be removed?
-      --shard_mapping[curr_shard.bag][curr_shard.slot] = nil
 
       -- TODO: REMOVE ME!!!
       print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
@@ -551,12 +553,8 @@ bag_slot_unlock_frame:SetScript("OnEvent",
 
       -- select correct shard to insert from table of unlocked shards
       for index, curr_shard in pairs(locked_shards) do
-        
-        -- only 1 element in table; set into slot; remove from table
         if #locked_shards == 1 then
           shard_mapping[bag][slot] = table.remove(locked_shards,index).data
-
-        -- swapping multiple shards; select the one from a different slot
         elseif curr_shard.bag ~= bag or (curr_shard.bag == bag and curr_shard.slot ~= slot) then
             shard_mapping[bag][slot] = table.remove(locked_shards,index).data
             break
@@ -714,14 +712,15 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: Blacklist (no summon list)
 
 -- TODO: BUG - - - - - - - - - - - - - - - - - - 
--- ---> Holding next shard thats going to be used as it gets used...
---        >> It uses that shard but the message prints 'Created xxx witht eh soul of <next_shard>
+-- ---> Drain soul on target i dont ahve tag on
+-- >>>> SOLUTION: Check bag/slot and make sure a soul shard is in that slot before assigning the data to the mapping
+--
 -- ---> Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
 --        >> Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
 --             Would this occur before or after mapping? 
--- ---> Drain soul on target i dont ahve tag on
 --
 -- TODO: TESTING - - - - - - - - - - - - - - - -
+-- ---> Drain soul on enemy that I dont have tagged
 -- ---> Testing saving data between sessions
 -- ---> Drain_soul/shadowburned target that does NOT yield xp/honor shouldn't get mapped || mess anything else up!
 -- ---> DELETE SHARD > then lock/unlock a different shard; will break after first attempt
