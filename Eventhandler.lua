@@ -315,6 +315,8 @@ current_target_frame:SetScript("OnEvent",
   function(self, event)
     current_target_guid = UnitGUID("target")
     current_target_name = UnitName("target")
+
+    local item_id = GetContainerItemID(bag_number, shard_index)
   end)
 
 
@@ -339,6 +341,7 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
       local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
       killed_target.race = race_name
       killed_target.class = class_name
+      -- TODO: Save level UnitLevel("target")
     end
 
     -- shard consuming spell active on killed target; reset corresponding data
@@ -444,15 +447,29 @@ local function successful_summon_handler(curr_time)
   end
 end
 
+--[[
+  Return bag, slot & item_id of last open slot.
+--]]
+local function get_last_open_slot_data()
+  local bag = next_open_shard_slot['bag_number']
+  local slot = next_open_shard_slot['open_index']
+  if bag ~= nil and slot ~= nil then 
+    local item_id = GetContainerItemID(bag, slot)
+    return bag, slot, item_id
+  end
+
+  return nil
+end
+
 
 local function bag_update_shard_handler(curr_time)
-  if shard_added or drain_soul_batched(curr_time) then
-    shard_added = false
-    local bag_number = next_open_shard_slot['bag_number']
-    local shard_index = next_open_shard_slot['open_index']
-    local item_id = GetContainerItemID(bag_number, shard_index)
-    if item_id == core.SOUL_SHARD_ID then
-      shard_mapping[bag_number+1][shard_index] = core.deep_copy(killed_target)
+  local bag, slot, item_id = get_last_open_slot_data()
+  if item_id == core.SOUL_SHARD_ID then
+    if shard_added or drain_soul_batched(curr_time) then
+      shard_added = false
+      shard_mapping[bag][slot] = core.deep_copy(killed_target)
+    else -- shard added for odd behavior (e.g. pet out and taking flight path)
+      shard_mapping[bag][slot] = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
     end
   end
 
