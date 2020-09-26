@@ -17,6 +17,7 @@ killed_target = {
   -- TODO: Add level if alliance? 
 }
 
+player_target_map = {}
 current_target_guid = nil
 current_target_name = nil
 
@@ -318,6 +319,10 @@ current_target_frame:SetScript("OnEvent",
   function(self, event)
     current_target_guid = UnitGUID("target")
     current_target_name = UnitName("target")
+
+    if is_target_player(current_target_guid) then
+      player_target_map[current_target_guid] = UnitLevel("target")
+    end
   end)
 
 
@@ -345,11 +350,14 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
     killed_target.name = dest_name 
     killed_target.location = core.getPlayerZone()
     if is_target_player(dest_guid) then -- non npc?
-      print("KILLED TARGET IS A PLAYER!")
       local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
       killed_target.race = race_name
       killed_target.class = class_name
-      -- TODO: Save level UnitLevel("target")
+      local player_lvl = player_target_map[dest_guid]
+      if player_lvl ~= nil then
+        killed_target.level = player_lvl
+        player_target_map[dest_guid] = nil
+      end
     end
 
     -- shard consuming spell active on killed target; reset corresponding data
@@ -625,6 +633,7 @@ reload_frame:SetScript("OnEvent",
     set_shard_data()
     reset_expired_stone_mapping()
     player_in_raid_instance = is_player_in_raid()
+    player_target_map = {}
 
     -- TODO: REMOVE ME!!!! (or just add for Krel :))
     CastSpellByID(core.FIND_HERBS_SID)
