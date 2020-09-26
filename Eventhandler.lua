@@ -12,7 +12,8 @@ killed_target = {
   name = "",
   race = "",
   class = "",
-  location = ""
+  location = "",
+  level = ""
   -- TODO: Add level if alliance? 
 }
 
@@ -329,6 +330,7 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
 
   -- save info of dead target
   -- TODO: Code always runs even if im not the one fighting; is this a problem?
+  -- >>> XXX: Anyway to check if I have the tag? 
   if subevent == core.UNIT_DIED then 
     killed_target.time = curr_time
     killed_target.name = dest_name 
@@ -443,7 +445,7 @@ local function successful_summon_handler(curr_time)
 end
 
 
-local function bag_update_shard_handler()
+local function bag_update_shard_handler(curr_time)
   if shard_added or drain_soul_batched(curr_time) then
     shard_added = false
     local bag_number = next_open_slot['bag_number']
@@ -476,6 +478,7 @@ local function bag_update_stone_handler()
   end
 end
 
+
 --[[
   On BAG_UPDATE (inventory change), check if item was a newly added soul shard. 
   Save mapping of new shard to bag index. Update next open bag slot.
@@ -489,7 +492,7 @@ item_frame:SetScript("OnEvent",
     local curr_time = GetTime()
 
     successful_summon_handler(curr_time)
-    bag_update_shard_handler()
+    bag_update_shard_handler(curr_time)
     bag_update_stone_handler()
 
     if pet_summoned then
