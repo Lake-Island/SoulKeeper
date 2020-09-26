@@ -20,6 +20,8 @@ killed_target = {
 current_target_guid = nil
 current_target_name = nil
 
+last_bag_update_time = nil
+
 logout_time = nil
 summon_details = {
   end_time = nil,
@@ -217,9 +219,9 @@ local function get_next_shard_data()
 end
 
 
-local function is_target_player()
-  if current_target_guid == nil then return false end
-  return string.find(current_target_guid, "Player") ~= nil
+local function is_target_player(tar_guid)
+  if tar_guid == nil then return false end
+  return string.find(tar_guid, "Player") ~= nil
 end
 
 
@@ -315,8 +317,6 @@ current_target_frame:SetScript("OnEvent",
   function(self, event)
     current_target_guid = UnitGUID("target")
     current_target_name = UnitName("target")
-
-    local item_id = GetContainerItemID(bag_number, shard_index)
   end)
 
 
@@ -337,7 +337,7 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
     killed_target.time = curr_time
     killed_target.name = dest_name 
     killed_target.location = core.getPlayerZone()
-    if is_target_player() then -- non npc?
+    if is_target_player(dest_guid) then -- non npc?
       local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
       killed_target.race = race_name
       killed_target.class = class_name
@@ -455,7 +455,7 @@ local function get_last_open_slot_data()
   local slot = next_open_shard_slot['open_index']
   if bag ~= nil and slot ~= nil then 
     local item_id = GetContainerItemID(bag, slot)
-    return bag, slot, item_id
+    return bag+1, slot, item_id    -- bag+1 for indexing at 1, not 0
   end
 
   return nil
@@ -507,6 +507,8 @@ item_frame:RegisterEvent("BAG_UPDATE")
 item_frame:SetScript("OnEvent",
   function(self, event, ...)
     local curr_time = GetTime()
+    if last_bag_update_time == curr_time then return end
+    last_bag_update_time = curr_time
 
     successful_summon_handler(curr_time)
     bag_update_shard_handler(curr_time)
@@ -700,7 +702,7 @@ cast_sent_frame:SetScript("OnEvent",
       local mssg = string.format(core.SS_MESSAGE, target, stone_data.name)
       message_active_party(mssg)
 
-    elseif spell_id == core.RITUAL_OF_SUMM_SID and is_target_player() then
+    elseif spell_id == core.RITUAL_OF_SUMM_SID and is_target_player(current_target_guid) then
       local shard_data = get_next_shard_data()
       local mssg = string.format(core.SUMMON_MESSAGE, current_target_name, shard_data.name)
       message_active_party(mssg)
@@ -734,10 +736,15 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: BUG - - - - - - - - - - - - - - - - - - 
 -- ---> Drain soul on target i dont ahve tag on
 -- >>>> SOLUTION: Check bag/slot and make sure a soul shard is in that slot before assigning the data to the mapping
+--      **** ATTEMPTED TO FIX THIS... NEED TO TEST WHEN BACK IN ORG
 --
 -- ---> Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
 --        >> Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
 --             Would this occur before or after mapping? 
+--
+-- ---> POSSIBLY NOT TRUE: Shadowburn seems to also have a spell_batch issue; maybe add .5 seconds to its timer?
+--    **** Might have had a different bug I mistook for this
+--    *** TEST TEST TEST
 --
 -- TODO: TESTING - - - - - - - - - - - - - - - -
 -- ---> Drain soul on enemy that I dont have tagged
