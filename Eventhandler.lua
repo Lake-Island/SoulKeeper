@@ -32,7 +32,7 @@ shard_mapping = { {}, {}, {}, {}, {} }
 -- map conjured stone item_ID to kill data 
 stone_mapping = {}
 
-next_open_slot = {}
+next_open_shard_slot = {}
 
 locked_shards = {}
 shard_added = false
@@ -224,7 +224,7 @@ end
 
 
 --[[
-  Set next_open_slot variable to contain the bag_number and index of the 
+  Set next_open_shard_slot variable to contain the bag_number and index of the 
   next open bag slot. Only soulbags and regular bags considered, soul bags
   get priority order.
 --]]
@@ -248,13 +248,13 @@ local function update_next_open_bag_slot()
       end
     end
 
-    -- set next_open_slot to corresopnding bag/index
+    -- set next_open_shard_slot to corresopnding bag/index
     if next(open_soul_bag) ~= nil then 
-      next_open_slot = open_soul_bag
+      next_open_shard_slot = open_soul_bag
     elseif next(open_normal_bag) ~= nil then
-      next_open_slot = open_normal_bag
+      next_open_shard_slot = open_normal_bag
     else
-      next_open_slot = {} 
+      next_open_shard_slot = {} 
     end
 end
 
@@ -350,7 +350,7 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
         reset_drain_soul_data()
       end
       -- shard added if space available in bag
-      if next(next_open_slot) ~= nil then 
+      if next(next_open_shard_slot) ~= nil then 
         shard_added = true
       end
     end
@@ -448,8 +448,8 @@ end
 local function bag_update_shard_handler(curr_time)
   if shard_added or drain_soul_batched(curr_time) then
     shard_added = false
-    local bag_number = next_open_slot['bag_number']
-    local shard_index = next_open_slot['open_index']
+    local bag_number = next_open_shard_slot['bag_number']
+    local shard_index = next_open_shard_slot['open_index']
     local item_id = GetContainerItemID(bag_number, shard_index)
     if item_id == core.SOUL_SHARD_ID then
       shard_mapping[bag_number+1][shard_index] = core.deep_copy(killed_target)
