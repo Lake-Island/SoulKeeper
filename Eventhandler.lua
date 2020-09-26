@@ -21,6 +21,7 @@ current_target_guid = nil
 current_target_name = nil
 
 last_bag_update_time = nil
+player_in_raid_instance = false
 
 logout_time = nil
 summon_details = {
@@ -330,14 +331,21 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
   local curr_time = GetTime()
   local _, subevent, _, _, _, _, _, dest_guid, dest_name, _, _, _, spell_name = CombatLogGetCurrentEventInfo()
 
+  local event_to_execute = core.PARTY_KILL
+  if player_in_raid_instance then
+    -- TODO: REMOVE ME!!!! --------------------------------
+    print("IN_RAID_USING_UNIT_DIED_INSTEAD_OF_PARTY_KILL")
+    -- TODO: REMOVE ME!!!! --------------------------------
+    event_to_execute = core.UNIT_DIED
+  end
+
   -- save info of dead target
-  -- TODO: Code always runs even if im not the one fighting; is this a problem?
-  -- >>> XXX: Anyway to check if I have the tag? 
-  if subevent == core.UNIT_DIED then 
+  if subevent == event_to_execute then 
     killed_target.time = curr_time
     killed_target.name = dest_name 
     killed_target.location = core.getPlayerZone()
     if is_target_player(dest_guid) then -- non npc?
+      print("KILLED TARGET IS A PLAYER!")
       local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
       killed_target.race = race_name
       killed_target.class = class_name
@@ -462,6 +470,10 @@ local function get_last_open_slot_data()
 end
 
 
+--[[
+  During BAG_UPDATE, check if a shard was added to the last open shard space. 
+  Set corresponding mapping/data if true.
+--]]
 local function bag_update_shard_handler(curr_time)
   local bag, slot, item_id = get_last_open_slot_data()
   if item_id == core.SOUL_SHARD_ID then
@@ -593,6 +605,17 @@ bag_slot_unlock_frame:SetScript("OnEvent",
   end)
 
 
+-- TODO: MOVE ME!!!!
+-- TODO: TEST ME!!!!
+local function is_player_in_raid()
+  local _, instance_type = GetInstanceInfo()
+  if instance_type == core.RAID then
+    return true
+  end
+  return false
+end
+
+
 local reload_frame = CreateFrame("Frame")
 reload_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 reload_frame:SetScript("OnEvent", 
@@ -601,6 +624,7 @@ reload_frame:SetScript("OnEvent",
     --set_default_shard_data()
     set_shard_data()
     reset_expired_stone_mapping()
+    player_in_raid_instance = is_player_in_raid()
 
     -- TODO: REMOVE ME!!!! (or just add for Krel :))
     CastSpellByID(core.FIND_HERBS_SID)
@@ -723,6 +747,7 @@ delete_item_frame:SetScript("OnEvent",
  
 
 
+-- TODO: Save level of alliance
 -- TODO: UI
 -- TODO: Different colors for shard data when allinace v. normal evenmy. v raid boss.. etc..
 -- TODO: Enslave demon; make sure all shard using spells accounted for; be sure to test them
@@ -734,17 +759,14 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: Blacklist (no summon list)
 
 -- TODO: BUG - - - - - - - - - - - - - - - - - - 
--- ---> Drain soul on target i dont ahve tag on
+--
+-- ---> Drain soul on target I dont ahve tag on
 -- >>>> SOLUTION: Check bag/slot and make sure a soul shard is in that slot before assigning the data to the mapping
---      **** ATTEMPTED TO FIX THIS... NEED TO TEST WHEN BACK IN ORG
 --
--- ---> Soul shard appearing in bag other than shadowburn/drain_soul; e.g. pet desummon flight path
---        >> Solution: On BAG UPDATE check if soul shard and mark as no data initially all the time? 
---             Would this occur before or after mapping? 
---
--- ---> POSSIBLY NOT TRUE: Shadowburn seems to also have a spell_batch issue; maybe add .5 seconds to its timer?
+-- ---> Shadowburn seems to also have a spell_batch issue; maybe add .5 seconds to its timer?
 --    **** Might have had a different bug I mistook for this
 --    *** TEST TEST TEST
+--
 --
 -- TODO: TESTING - - - - - - - - - - - - - - - -
 -- ---> Drain soul on enemy that I dont have tagged

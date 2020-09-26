@@ -42,18 +42,20 @@ core.MISC_SPELL_NAMES = {
 }
 
 -- Misc
+core.PARTY_KILL  = "PARTY_KILL"
 core.UNIT_DIED  = "UNIT_DIED"
 core.SHADOWBURN = "Shadowburn"
+core.RAID = "raid"
 core.SHADOWBURN_DEBUFF_TIME = 5
 core.AURA_APPLIED = "SPELL_AURA_APPLIED"
 core.AURA_REMOVED = "SPELL_AURA_REMOVED"
 core.DEFAULT_KILLED_TARGET_DATA = {
   time = -1,
-  name = "<No_Data>",
-  race = "<No_Data>",
-  class = "<No_Data>",
-  location = "<No_Data>"
-  -- TODO: Add level if alliance?
+  name = "Unkown",
+  race = "Unknown",
+  class = "Unknown",
+  location = "Unknown",
+  level = "Unknown"
 }
 
 -- item_id of all stones
