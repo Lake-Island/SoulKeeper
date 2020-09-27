@@ -13,7 +13,8 @@ killed_target = {
   race = "",
   class = "",
   location = "",
-  level = ""
+  level = nil,
+  is_boss = false
   -- TODO: Add level if alliance? 
 }
 
@@ -338,9 +339,6 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
 
   local event_to_execute = core.PARTY_KILL
   if player_in_raid_instance then
-    -- TODO: REMOVE ME!!!! --------------------------------
-    print("IN_RAID_USING_UNIT_DIED_INSTEAD_OF_PARTY_KILL")
-    -- TODO: REMOVE ME!!!! --------------------------------
     event_to_execute = core.UNIT_DIED
   end
 
@@ -358,6 +356,8 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
         killed_target.level = player_lvl
         player_target_map[dest_guid] = nil
       end
+    elseif core.is_boss(core.get_npc_id(dest_guid)) then
+      killed_target.is_boss = true 
     end
 
     -- shard consuming spell active on killed target; reset corresponding data
@@ -613,8 +613,7 @@ bag_slot_unlock_frame:SetScript("OnEvent",
   end)
 
 
--- TODO: MOVE ME!!!!
--- TODO: TEST ME!!!!
+-- TODO: MOVE ME TO CORE?!!!!
 local function is_player_in_raid()
   local _, instance_type = GetInstanceInfo()
   if instance_type == core.RAID then
@@ -756,7 +755,6 @@ delete_item_frame:SetScript("OnEvent",
  
 
 
--- TODO: Save level of alliance
 -- TODO: UI
 -- TODO: Different colors for shard data when allinace v. normal evenmy. v raid boss.. etc..
 -- TODO: Enslave demon; make sure all shard using spells accounted for; be sure to test them
@@ -768,9 +766,6 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: Blacklist (no summon list)
 
 -- TODO: BUG - - - - - - - - - - - - - - - - - - 
---
--- ---> Drain soul on target I dont ahve tag on
--- >>>> SOLUTION: Check bag/slot and make sure a soul shard is in that slot before assigning the data to the mapping
 --
 -- ---> Shadowburn seems to also have a spell_batch issue; maybe add .5 seconds to its timer?
 --    **** Might have had a different bug I mistook for this

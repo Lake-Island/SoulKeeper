@@ -20,9 +20,21 @@ local function GameTooltip_OnTooltipSetItem(tooltip)
     local shard_mapping = core.get_shard_mapping()
     local curr_shard = shard_mapping[bag_id][slot_id]
     tooltip:AddLine(" ")
-    tooltip:AddLine("Soul of <" .. curr_shard.name .. ">")
+        --tooltip:AddLine("|cFF00FF00SU Loot Info|r")
+
+    -- TODO: Add hex color codes to core
+    if curr_shard.is_boss then -- boss
+      tooltip:AddLine("Soul of |cFFE67D13<" .. curr_shard.name .. ">") --orange
+    elseif curr_shard.level ~= nil then -- player
+      -- TODO: Alliance(blue) vs Horde(red).. a
+      tooltip:AddLine("Soul of |cFF58ACFA<" .. curr_shard.name .. ">") --blue
+      print("LVL: " .. curr_shard.level)
+    else -- other
+      tooltip:AddLine("Soul of |cFF8000FF<" .. curr_shard.name .. ">") --purple
+    end
 
     -- TODO: Do the same for HS/SS/other stones
+    -- TODO: Add all boss_ids to list in core
 end
 
 GameTooltip:HookScript("OnTooltipSetItem", GameTooltip_OnTooltipSetItem)

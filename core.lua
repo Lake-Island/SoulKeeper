@@ -55,7 +55,8 @@ core.DEFAULT_KILLED_TARGET_DATA = {
   race = "Unknown",
   class = "Unknown",
   location = "Unknown",
-  level = "Unknown"
+  level = nil,
+  is_boss = false
 }
 
 -- item_id of all stones
@@ -176,6 +177,87 @@ core.SPELL_NAME_TO_ITEM_ID = {
     ["Create Firestone (Major)"]     = 13701
   }
 }
+
+local boss_id = {
+    10184, -- Onyxia
+    12118, -- Lucifron
+    12056, -- Geddon
+    12057, -- Garr
+    12259, -- Gehennas
+    11988, -- Golemagg
+    11982, -- Magmadar
+    12018, -- Domo
+    11502, -- Ragnaros
+    12264, -- Shazzrah
+    12098, -- Sulfuron
+    12017, -- Broodlord
+    14020, -- Chromaggus
+    14601, -- Ebonroc
+    11983, -- Firemaw
+    11981, -- Flamegor
+    11583, -- Nefarian
+    12435, -- Razorgore
+    13020, -- Vael
+    15516, -- Sartura
+    15727, -- Cthun
+    15276, -- Veklor
+    15275, -- Veknilash
+    15510, -- Fankriss
+    15511, -- Lord Kri
+    15517, -- Ouro
+    15509, -- Huhuran
+    15543, -- Yauj
+    15263, -- Skeram
+    15544, -- Vem
+    15299, -- Viscidus
+    15956, -- Anub'Rekhan
+    15932, -- Gluth
+    16060, -- Gothik
+    15953, -- Faerlina
+    15931, -- Grobbulus
+    15936, -- Heigan
+    16062, -- Mograine
+    16061, -- Razuvious
+    15990, -- KelThuzad
+    16065, -- Blaumeux
+    16011, -- Loatheb
+    15952, -- Maexxna
+    15954, -- Noth
+    16028, -- Patchwerk
+    15989, -- Sapphiron
+    16063, -- Zeliek
+    15928, -- Thaddius
+    16064, -- Korthazz
+    -- TODO: Add 20man boss id
+    14517, -- jeklik
+    14507, -- 
+    14510, -- 
+}
+
+local function has_value(tab, val)
+    for index, value in ipairs(tab) do
+        if value == val then
+            return true
+        end
+    end
+
+    return false
+end
+
+local function get_npc_id(guid)
+    local _, _, _, _, _, npc_id = strsplit("-", guid)
+    return tonumber(npc_id)
+end
+core.get_npc_id = get_npc_id
+
+
+local function is_boss(npc_id)
+  if has_value(boss_id, npc_id) then
+    return true
+  end
+  return false
+end
+core.is_boss = is_boss
 
 
 --[[ Return player subzone and realzone as concatenated string --]]
