@@ -1,5 +1,8 @@
 local _, core = ...
 
+-- TODO: Move to core
+core.ORANGE = "|cFFE67D13"
+
 local function GameTooltip_OnTooltipSetItem(tooltip)
     local itemName, itemLink = tooltip:GetItem()
     if not itemName or not itemLink then
@@ -24,13 +27,13 @@ local function GameTooltip_OnTooltipSetItem(tooltip)
 
     -- TODO: Add hex color codes to core
     if curr_shard.is_boss then -- boss
-      tooltip:AddLine("Soul of |cFFE67D13<" .. curr_shard.name .. ">") --orange
+      tooltip:AddLine("Soul of " .. core.ORANGE .. curr_shard.name .. ">") --orange
     elseif curr_shard.level ~= nil then -- player
       -- TODO: Alliance(blue) vs Horde(red).. a
       tooltip:AddLine("Soul of |cFF58ACFA<" .. curr_shard.name .. ">") --blue
       print("LVL: " .. curr_shard.level)
     else -- other
-      tooltip:AddLine("Soul of |cFF8000FF<" .. curr_shard.name .. ">") --purple
+      tooltip:AddLine("Soul of |cFF9F81F7<" .. curr_shard.name .. ">") --purple
     end
 
     -- TODO: Do the same for HS/SS/other stones

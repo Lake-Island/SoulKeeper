@@ -1,6 +1,7 @@
 local _, core = ...
 
 
+--[[
 core.main_display_frame = CreateFrame("FRAME")
 core.main_display_frame.name = "SK_FRAME"
 core.main_display_frame:SetSize(100,20); -- width, height
@@ -34,7 +35,7 @@ core.main_display_frame.text = core.main_display_frame:CreateFontString(nil, "OV
 core.main_display_frame.text:SetFont("Fonts\\ARIALN.ttf", 10, "OUTLINE")
 core.main_display_frame.text:SetPoint("TOP", 0, -5)
 core.main_display_frame.text:SetText("Next soul: ")
-
+]]--
 
 
 -- TODO: UI

@@ -327,6 +327,21 @@ current_target_frame:SetScript("OnEvent",
   end)
 
 
+--[[
+  Reset locked shard data when the locked shard was consumed.
+-- TODO: Change 'next_shard_location' to be local instead of global. Can then call the function 
+-- directly.
+--]]
+local function reset_consumed_locked_shard_data(shard_location)
+  local locked_shard = locked_shards[1]
+  if locked_shard ~= nil then 
+    if locked_shard.bag == shard_location.bag and 
+       locked_shard.slot == shard_location.slot then
+      locked_shards = {}
+    end
+  end
+end
+
 --[[ 
      From the Combat Log save the targets details, time, and location of kill.
      Track shadowburn debuff data.
@@ -379,7 +394,12 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
     curr_time = GetTime()
     if subevent == core.AURA_APPLIED then
       set_shadowburn_data(dest_guid, GetTime(curr_time))
-    elseif subevent == core.AURA_REMOVED and curr_time >= shadowburn_data.end_time then
+    -- TODO: Ugly fix this if condition now so many ands..
+    elseif subevent == core.AURA_REMOVED and shadowburn_data.end_time ~= nil and curr_time >= shadowburn_data.end_time then
+      -- TODO: Maybe save timestamp when it was removed, then check when target was killed 
+      -- if it was .5 seconds in that window or w/e
+      -- >>> e.g. about condition would also check if timestamp fits idfference threshold
+      print("Shadowburn Aura - Removed") -- TODO: REMOVE ME!!!
       reset_shadowburn_data()
     end
   end
@@ -647,22 +667,6 @@ logout_frame:SetScript("OnEvent",
   end)
 
 
-
---[[
-  Reset locked shard data when the locked shard was consumed.
--- TODO: Change 'next_shard_location' to be local instead of global. Can then call the function 
--- directly.
---]]
-local function reset_consumed_locked_shard_data(shard_location)
-  local locked_shard = locked_shards[1]
-  if locked_shard ~= nil then 
-    if locked_shard.bag == shard_location.bag and 
-       locked_shard.slot == shard_location.slot then
-      locked_shards = {}
-    end
-  end
-end
-
 --[[
   Check if a shard consuming spell was cast successfully. Map corresponding shard 
   data to newly conjured stone/pet. 
@@ -756,7 +760,6 @@ delete_item_frame:SetScript("OnEvent",
 
 
 -- TODO: UI
--- TODO: Different colors for shard data when allinace v. normal evenmy. v raid boss.. etc..
 -- TODO: Enslave demon; make sure all shard using spells accounted for; be sure to test them
 -- TODO: Update messages, if alliance add information... etc..
 -- TODO: Custom message can be written by user through console
@@ -767,12 +770,16 @@ delete_item_frame:SetScript("OnEvent",
 
 -- TODO: BUG - - - - - - - - - - - - - - - - - - 
 --
+-- ---> TEST: First drain_soul after reload in ZG was always null name when I hovered over shard?
+--
 -- ---> Shadowburn seems to also have a spell_batch issue; maybe add .5 seconds to its timer?
 --    **** Might have had a different bug I mistook for this
 --    *** TEST TEST TEST
+--    >>>>> Wrote TODO in combat_log function describing possible solution
 --
 --
 -- TODO: TESTING - - - - - - - - - - - - - - - -
+-- ---> Disable ElV-UI makesure it still looks good
 -- ---> Drain soul on enemy that I dont have tagged
 -- ---> Testing saving data between sessions
 -- ---> Drain_soul/shadowburned target that does NOT yield xp/honor shouldn't get mapped || mess anything else up!

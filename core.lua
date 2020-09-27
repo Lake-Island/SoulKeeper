@@ -232,6 +232,19 @@ local boss_id = {
     14517, -- jeklik
     14507, -- 
     14510, -- 
+    14834, -- hakkar
+}
+
+
+local class_colors = {
+    ["Druid"] = "FF7D0A",
+    ["Hunter"] = "A9D271",
+    ["Mage"] = "40C7EB",
+    ["Shaman"] = "F58CBA",
+    ["Priest"] = "FFFFFF",
+    ["Rogue"] = "FFF569",
+    ["Warlock"] = "8787ED",
+    ["Warrior"] = "C79C6E"
 }
 
 local function has_value(tab, val)
