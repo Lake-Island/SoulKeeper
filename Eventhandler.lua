@@ -225,13 +225,12 @@ end
 
 --[[ Return the data of the next shard from inventory ]]--
 local function get_next_shard_data()
-  -- TODO: THIS SHOULD BE LOCAL.. BUT I USE ITS VALUE IN OTHER PLACESA SO WILL NEED TO FIX
-  next_shard_location = find_next_shard_location()
+  local next_shard_location = find_next_shard_location()
   if next_shard_location.bag == core.SLOT_NULL then -- prevents duplicate executions
     return nil
   end
   local shard_data = shard_mapping[next_shard_location.bag][next_shard_location.slot]
-  return shard_data
+  return shard_data, next_shard_location
 end
 
 
@@ -598,6 +597,8 @@ bag_slot_lock_frame:SetScript("OnEvent",
       curr_shard.data = shard_mapping[curr_shard.bag][curr_shard.slot]
       table.insert(locked_shards, curr_shard)
 
+      shard_mapping[curr_shard.bag][curr_shard.slot] = nil
+
       -- TODO: REMOVE ME!!!
       print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
 
@@ -700,7 +701,7 @@ cast_success_frame:SetScript("OnEvent",
 
     -- conjure stone 
     if shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) and not stone_created then
-      local shard_data = get_next_shard_data()
+      local shard_data, next_shard_location = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.slot] = nil
       stone_iid = get_stone_item_id(spell_id, spell_name)
       stone_name = core.STONE_ID_TO_NAME[stone_iid]
@@ -714,7 +715,7 @@ cast_success_frame:SetScript("OnEvent",
 
     -- summon pet 
     elseif shard_consuming_spell(spell_name, core.SUMMON_PET_NAMES) and not pet_summoned then
-      local shard_data = get_next_shard_data()
+      local shard_data, next_shard_location = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.slot] = nil
 
       pet_summoned = true
@@ -773,17 +774,12 @@ delete_item_frame:SetScript("OnEvent",
  
 
 
--- TODO: UI
 -- TODO: When trading HS -- whisper player the name of the soul!
 -- TODO: Enslave demon; make sure all shard using spells accounted for; be sure to test them
 -- TODO: Update announced messages, if alliance add information... etc..
 -- TODO: Custom message can be written by user through console
 -- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
-
--- TODO: List of all warlocks with available SS?
--- TODO: Blacklist (no summon list)
-
-
+--
 
 -- TODO: TESTING - - - - - - - - - - - - - - - -
 -- ---> Use locked shard for all different consuming spells. Also try locking shard that WONT be used when casting shard 
@@ -795,8 +791,6 @@ delete_item_frame:SetScript("OnEvent",
 --        another and see what happens
 -- ---> Drain soul on enemy that I dont have tagged
 -- ---> Drain_soul/shadowburned target that does NOT yield xp/honor shouldn't get mapped || mess anything else up!
--- ---> SPELL_SUCCESS consuming SS/HS.. Test with SS consumption; swap with healthstones/different healthstones
--- ---> Destroy stuff
 -- ---> Logout and test on relogin conjured items/stones still the same? What about after 15min?
 -- ---> 15min logout -- does data get cleared? Right before 15m mark, right after 15m mark.
 --        > Also test going in/out of dungeons after a while, etc... randomly died in AQ saw the clear message
@@ -808,7 +802,6 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: REFACTOR
 -- ---> Create getter functions for getting map values.. e.g. x = stonemapping[item_id]  should be x = get_stone(item_id); etc..
 -- ---> Refactor to no longer use spell_name is SPELLCAST_SUCCEED & get_stone_id.. use ID's instead.. would require refactoring core
--- ---> Core code.. label magic numbers... e.g. (MINOR_SS_ITEM_ID = 66666), etc..
 -- ---> 'next_shard_location' needs to be local.. that means it need sto be fixed in multiple places
 
 
