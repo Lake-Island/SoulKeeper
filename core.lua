@@ -248,6 +248,28 @@ local class_colors = {
     ["Warrior"] = "C79C6E"
 }
 
+local horde_factions = { "Orc", "Undead", "Tauren", "Troll" }
+
+
+local function has_value(tab, val)
+    for index, value in ipairs(tab) do
+        if value == val then
+            return true
+        end
+    end
+
+    return false
+end
+
+
+local function is_faction_horde(race)
+  if has_value(horde_factions, race) then
+    return true
+  end
+  return false
+end
+core.is_faction_horde = is_faction_horde
+
 
 local function is_item_id_stone(item_id)
   if core.STONE_ID_TO_NAME[item_id] ~= nil then
@@ -263,15 +285,6 @@ local function get_class_color(class_name)
 end
 core.get_class_color = get_class_color
 
-local function has_value(tab, val)
-    for index, value in ipairs(tab) do
-        if value == val then
-            return true
-        end
-    end
-
-    return false
-end
 
 local function get_npc_id(guid)
     local _, _, _, _, _, npc_id = strsplit("-", guid)

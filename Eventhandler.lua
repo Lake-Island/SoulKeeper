@@ -158,9 +158,11 @@ local function set_shard_data()
       if curr_item_id == core.SOUL_SHARD_ID then
         local test_data = nil
         if count == 1 then
-          test_data = { name="Guy_1", race="Gnome", class="Warrior", is_player = true, level = 60, is_boss = false }
+          test_data = { name="Guy", race="Human", class="Mage", is_player = true, level = 60, is_boss = false }
         elseif count == 2 then
-          test_data = { name="Boss_1", is_boss = true }
+          test_data = { name="Krel", race="Undead", class="Warlock", is_player = true, level = 60, is_boss = false }
+        elseif count == 3 then
+          test_data = { name="Nefarian", is_boss = true }
         else
           test_data = { name=string.format("shard_%d", count) }
         end
@@ -772,7 +774,7 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: UI
 -- TODO: When trading HS -- whisper player the name of the soul!
 -- TODO: Enslave demon; make sure all shard using spells accounted for; be sure to test them
--- TODO: Update messages, if alliance add information... etc..
+-- TODO: Update announced messages, if alliance add information... etc..
 -- TODO: Custom message can be written by user through console
 -- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
 
@@ -811,6 +813,7 @@ delete_item_frame:SetScript("OnEvent",
 --          consuming spells
 --
 -- TODO: REFACTOR
+-- ---> Create getter functions for getting map values.. e.g. x = stonemapping[item_id]  should be x = get_stone(item_id); etc..
 -- ---> Refactor to no longer use spell_name is SPELLCAST_SUCCEED & get_stone_id.. use ID's instead.. would require refactoring core
 -- ---> Core code.. label magic numbers... e.g. (MINOR_SS_ITEM_ID = 66666), etc..
 -- ---> find_next_shard_location() ... Can add confirmation to check  actual bag_slot if shard exists there,

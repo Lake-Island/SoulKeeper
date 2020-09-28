@@ -1,14 +1,16 @@
 local _, core = ...
 
 -- TODO: Move to core
-core.ORANGE = "E67D13"
+core.ORANGE = "FF8000"
 core.BLUE = "58ACFA"
 core.PURPLE = "9F81F7"
---core.PINK = "F7819F"
-core.L_BLUE = "A9BCF5"
+core.L_BLUE = "81BEF7"
+core.L_RED = "F78181"
+core.RED = "FA5858"
 
-core.SOUL_OF = "Soul of |cFF%s%s"           -- color; name
+core.SOUL_OF = "|cFF%sSoul of <%s>"           -- color; name
 core.PLAYER_DETAILS = "|cFF%sLevel %d %s %s"  -- color; level; race; class
+core.RAID_BOSS = "|cFF%sRaid Boss"            -- color;
 
 local function get_mouse_over_bag_slot() 
     local focus = GetMouseFocus()
@@ -23,11 +25,15 @@ local function display_soul_data(tooltip, soul)
   tooltip:AddLine(" ")
   if soul.is_boss then 
     tooltip:AddLine(string.format(core.SOUL_OF, core.ORANGE, soul.name))
+    tooltip:AddLine(string.format(core.RAID_BOSS, core.RED))
   elseif soul.is_player then  
     local class_color = core.get_class_color(soul.class)
+    local faction_color = core.L_BLUE
+    if core.is_faction_horde(soul.race) then 
+      faction_color = core.L_RED 
+    end
     tooltip:AddLine(string.format(core.SOUL_OF, class_color, soul.name))
-    -- TODO: Alliance blue -- horde red?
-    tooltip:AddLine(string.format(core.PLAYER_DETAILS, core.L_BLUE, soul.level, soul.race, soul.class))
+    tooltip:AddLine(string.format(core.PLAYER_DETAILS, faction_color, soul.level, soul.race, soul.class))
   else 
     tooltip:AddLine(string.format(core.SOUL_OF, core.PURPLE, soul.name))
   end
