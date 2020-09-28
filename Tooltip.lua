@@ -23,6 +23,7 @@ end
 
 local function display_soul_data(tooltip, soul)
   tooltip:AddLine(" ")
+  if soul == nil then return end
   if soul.is_boss then 
     tooltip:AddLine(string.format(core.SOUL_OF, core.ORANGE, soul.name))
     tooltip:AddLine(string.format(core.RAID_BOSS, core.RED))

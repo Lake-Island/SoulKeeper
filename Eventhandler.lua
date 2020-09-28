@@ -795,10 +795,12 @@ delete_item_frame:SetScript("OnEvent",
 -- ---> TEST: Shadowburn seems to also have a spell_batch issue; maybe add .5 seconds to its timer?
 --    **** Might have had a different bug I mistook for this
 --    *** TEST TEST TEST
+-- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
 --
+-- ---> Someone else fighting alliance; I also get tag? Dunno.. test drain soul on alliacne.. also on one that was already fighting 
+--        another and see what happens
 -- ---> Drain soul on enemy that I dont have tagged
 -- ---> Drain_soul/shadowburned target that does NOT yield xp/honor shouldn't get mapped || mess anything else up!
--- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
 -- ---> SPELL_SUCCESS consuming SS/HS.. Test with SS consumption; swap with healthstones/different healthstones
 -- ---> Destroy stuff
 -- ---> Logout and test on relogin conjured items/stones still the same? What about after 15min?
