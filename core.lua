@@ -56,6 +56,7 @@ core.DEFAULT_KILLED_TARGET_DATA = {
   class = "Unknown",
   location = "Unknown",
   level = nil,
+  is_player = false,
   is_boss = false
 }
 
@@ -246,6 +247,21 @@ local class_colors = {
     ["Warlock"] = "8787ED",
     ["Warrior"] = "C79C6E"
 }
+
+
+local function is_item_id_stone(item_id)
+  if core.STONE_ID_TO_NAME[item_id] ~= nil then
+    return true
+  end
+  return false
+end
+core.is_item_id_stone = is_item_id_stone
+
+
+local function get_class_color(class_name)
+  return class_colors[class_name]
+end
+core.get_class_color = get_class_color
 
 local function has_value(tab, val)
     for index, value in ipairs(tab) do

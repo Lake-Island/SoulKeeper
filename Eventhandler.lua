@@ -14,6 +14,7 @@ killed_target = {
   class = "",
   location = "",
   level = nil,
+  is_player = false,
   is_boss = false
   -- TODO: Add level if alliance? 
 }
@@ -155,7 +156,14 @@ local function set_shard_data()
       curr_shard_slot = shard_mapping[bag_num+1][slot_num]
       -- unmapped soul shard; map it.
       if curr_item_id == core.SOUL_SHARD_ID then
-        local test_data = { name=string.format("shard_%d", count) }
+        local test_data = nil
+        if count == 1 then
+          test_data = { name="Guy_1", race="Gnome", class="Warrior", is_player = true, level = 60, is_boss = false }
+        elseif count == 2 then
+          test_data = { name="Boss_1", is_boss = true }
+        else
+          test_data = { name=string.format("shard_%d", count) }
+        end
         count = count + 1
         shard_mapping[bag_num+1][slot_num] = core.deep_copy(test_data)
       end
@@ -358,6 +366,7 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
   end
 
   -- save info of dead target
+  -- TODO: HELPER FUNCTION
   if subevent == event_to_execute then 
     killed_target.time = curr_time
     killed_target.name = dest_name 
@@ -366,6 +375,7 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
       local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
       killed_target.race = race_name
       killed_target.class = class_name
+      killed_target.is_player = true 
       local player_lvl = player_target_map[dest_guid]
       if player_lvl ~= nil then
         killed_target.level = player_lvl
@@ -584,7 +594,7 @@ bag_slot_lock_frame:SetScript("OnEvent",
       table.insert(locked_shards, curr_shard)
 
       -- TODO: REMOVE ME!!!
-      print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
+      --print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
 
     -- mark stone as 'locked'
     elseif core.STONE_ID_TO_NAME[item_id] ~= nil then
@@ -624,7 +634,7 @@ bag_slot_unlock_frame:SetScript("OnEvent",
       end
 
       -- TODO: REMOVE ME!!!
-      print("Added shard --- " .. shard_mapping[bag][slot].name .. " --- to map!")
+      --print("Added shard --- " .. shard_mapping[bag][slot].name .. " --- to map!")
 
     -- mark stone 'unlocked'
     elseif core.STONE_ID_TO_NAME[item_id] ~= nil then
@@ -760,6 +770,7 @@ delete_item_frame:SetScript("OnEvent",
 
 
 -- TODO: UI
+-- TODO: When trading HS -- whisper player the name of the soul!
 -- TODO: Enslave demon; make sure all shard using spells accounted for; be sure to test them
 -- TODO: Update messages, if alliance add information... etc..
 -- TODO: Custom message can be written by user through console
@@ -771,6 +782,7 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: BUG - - - - - - - - - - - - - - - - - - 
 --
 -- ---> TEST: First drain_soul after reload in ZG was always null name when I hovered over shard?
+--  >>>> Seems like this always occurs after a reboot
 --
 -- ---> Shadowburn seems to also have a spell_batch issue; maybe add .5 seconds to its timer?
 --    **** Might have had a different bug I mistook for this
