@@ -61,68 +61,103 @@ core.DEFAULT_KILLED_TARGET_DATA = {
   faction_color = nil
 }
 
+local stone_iid = {
+  -- Healthstone 
+  M_HS_1 = 5512,
+  M_HS_2 = 19004,
+  M_HS_3 = 19005,
+  L_HS_1 = 5511,
+  L_HS_2 = 19006,
+  L_HS_3 = 19007,
+  HS_1   = 5509,
+  HS_2   = 19008,
+  HS_3   = 19009,
+  G_HS_1 = 5510,
+  G_HS_2 = 19010,
+  G_HS_3 = 19011,
+  MAJOR_HS_1 = 9421,
+  MAJOR_HS_2 = 19012,
+  MAJOR_HS_3 = 19013,
+  -- Soulstone
+  M_SS = 5232,
+  L_SS = 16892,
+  SS   = 16893,
+  G_SS = 16895,
+  MAJOR_SS = 16896,
+  -- Spellstone/firestone
+  SPELLSTONE = 5522,
+  G_SPELLSTONE = 13602,
+  M_SPELLSTONE = 13603,
+  L_FIRESTONE = 1254,
+  FIRESTONE   = 13699,
+  G_FIRESTONE = 13700,
+  M_FIRESTONE = 13701
+}
+
 -- item_id of all stones
+-- TODO: What do I use this for?
 core.STONE_ID_TO_NAME = {
-  [5512]  = 'Minor Healthstone',
-  [19004] = 'Minor Healthstone',
-  [19005] = 'Minor Healthstone',
-  [5511]  = 'Lesser Healthstone',
-  [19006] = 'Lesser Healthstone',
-  [19007] = 'Lesser Healthstone',
-  [5509]  = 'Healthstone',
-  [19008] = 'Healthstone',
-  [19009] = 'Healthstone',
-  [5510]  = 'Greater Healthstone',
-  [19010] = 'Greater Healthstone',
-  [19011] = 'Greater Healthstone',
-  [9421]  = 'Major Healthstone',
-  [19012] = 'Major Healthstone',
-  [19013] = 'Major Healthstone',
-  [5232]  = 'Minor Soulstone',
-  [16892] = 'Lesser Soulstone',
-  [16893] = 'Soulstone',
-  [16895] = 'Greater Soulstone',
-  [16896] = 'Major Soulstone',
-  [5522]  = 'Spellstone',
-  [13602] = 'Greater Spellstone',
-  [13603] = 'Major Spellstone',
-  [1254]  = 'Lesser Firestone',
-  [13699] = 'Firestone',
-  [13700] = 'Greater Firestone',
-  [13701] = 'Major Firestone'
+  [stone_iid.M_HS_1] = 'Minor Healthstone',
+  [stone_iid.M_HS_2] = 'Minor Healthstone',
+  [stone_iid.M_HS_3] = 'Minor Healthstone',
+  [stone_iid.L_HS_1] = 'Lesser Healthstone',
+  [stone_iid.L_HS_2] = 'Lesser Healthstone',
+  [stone_iid.L_HS_3] = 'Lesser Healthstone',
+  [stone_iid.HS_1]   = 'Healthstone',
+  [stone_iid.HS_2]   = 'Healthstone',
+  [stone_iid.HS_3]   = 'Healthstone',
+  [stone_iid.G_HS_1] = 'Greater Healthstone',
+  [stone_iid.G_HS_2] = 'Greater Healthstone',
+  [stone_iid.G_HS_3] = 'Greater Healthstone',
+  [stone_iid.MAJOR_HS_1] = 'Major Healthstone',
+  [stone_iid.MAJOR_HS_2] = 'Major Healthstone',
+  [stone_iid.MAJOR_HS_3] = 'Major Healthstone',
+  [stone_iid.M_SS]  = 'Minor Soulstone',
+  [stone_iid.L_SS] = 'Lesser Soulstone',
+  [stone_iid.SS] = 'Soulstone',
+  [stone_iid.G_SS] = 'Greater Soulstone',
+  [stone_iid.MAJOR_SS] = 'Major Soulstone',
+  [stone_iid.SPELLSTONE]  = 'Spellstone',
+  [stone_iid.G_SPELLSTONE] = 'Greater Spellstone',
+  [stone_iid.M_SPELLSTONE] = 'Major Spellstone',
+  [stone_iid.L_FIRESTONE]  = 'Lesser Firestone',
+  [stone_iid.FIRESTONE] = 'Firestone',
+  [stone_iid.G_FIRESTONE] = 'Greater Firestone',
+  [stone_iid.M_FIRESTONE] = 'Major Firestone'
 }
 
 -- soulstone ressurection spell_id to item_id
 core.CONSUME_SS_SID_TO_IID = {
-  [20707] = 5232,   -- minor 
-  [20762] = 16892,  -- lesser
-  [20763] = 16893,  -- regular
-  [20764] = 16895,  -- greater
-  [20765] = 16896   -- major
+  [20707] = stone_iid.M_SS,  -- minor 
+  [20762] = stone_iid.L_SS,  -- lesser
+  [20763] = stone_iid.SS,    -- regular
+  [20764] = stone_iid.G_SS,  -- greater
+  [20765] = stone_iid.MAJOR_SS   -- major
 }
+
 
 -- consume healthstone spell_id to item_id
 core.CONSUME_HS_SID_TO_IID = {
   -- minor
-  [6262] = 5512, 
-  [23468] = 19004,
-  [23469] = 19005,
+  [6262]  = stone_iid.M_HS_1, 
+  [23468] = stone_iid.M_HS_2,
+  [23469] = stone_iid.M_HS_3,
   -- lesser
-  [6263] = 5511, 
-  [23470] = 19006,
-  [23471] = 19007,
+  [6263] = stone_iid.L_HS_1, 
+  [23470] = stone_iid.L_HS_2,
+  [23471] = stone_iid.L_HS_3,
   -- regular
-  [5720] = 5509, 
-  [23472] = 19008,
-  [23473] = 19009,
+  [5720] = stone_iid.HS_1, 
+  [23472] = stone_iid.HS_2,
+  [23473] = stone_iid.HS_3,
   -- greater
-  [5723] = 5510, 
-  [23474] = 19010,
-  [23475] = 19011,
+  [5723] = stone_iid.G_HS_1, 
+  [23474] = stone_iid.G_HS_2,
+  [23475] = stone_iid.G_HS_3,
   -- major
-  [11732] = 9421, 
-  [23476] = 19012,
-  [23477] = 19013,
+  [11732] = stone_iid.MAJOR_HS_1, 
+  [23476] = stone_iid.MAJOR_HS_2,
+  [23477] = stone_iid.MAJOR_HS_3,
 }
 
 
@@ -139,44 +174,44 @@ core.CREATE_HS_SID = {
 core.SPELL_NAME_TO_ITEM_ID = {
   ["HS"] = {
     ["Create Healthstone (Minor)"]   = {
-      [0] = 5512,
-      [1] = 19004,
-      [2] = 19005
+      [0] = stone_iid.M_HS_1,
+      [1] = stone_iid.M_HS_2,
+      [2] = stone_iid.M_HS_3
     },
     ["Create Healthstone (Lesser)"]  = {
-      [0] = 5511,
-      [1] = 19006,
-      [2] = 19007
+      [0] = stone_iid.L_HS_1,
+      [1] = stone_iid.L_HS_2,
+      [2] = stone_iid.L_HS_3
     },
     ["Create Healthstone"]           = {
-      [0] = 5509,
-      [1] = 19008,
-      [2] = 19009
+      [0] = stone_iid.HS_1,
+      [1] = stone_iid.HS_2,
+      [2] = stone_iid.HS_3
     },
     ["Create Healthstone (Greater)"] = {
-      [0] = 5510,
-      [1] = 19010,
-      [2] = 19011
+      [0] = stone_iid.G_HS_1,
+      [1] = stone_iid.G_HS_2,
+      [2] = stone_iid.G_HS_3
     },
     ["Create Healthstone (Major)"]   = {
-      [0] = 9421,
-      [1] = 19012,
-      [2] = 19013
+      [0] = stone_iid.MAJOR_HS_1,
+      [1] = stone_iid.MAJOR_HS_2,
+      [2] = stone_iid.MAJOR_HS_3
     }
   },
   ["NON-HS"] = {
-    ["Create Soulstone (Minor)"]     = 5232,
-    ["Create Soulstone (Lesser)"]    = 16892,
-    ["Create Soulstone"]             = 16893,
-    ["Create Soulstone (Greater)"]   = 16895,
-    ["Create Soulstone (Major)"]     = 16896,
-    ["Create Spellstone"]            = 5522,
-    ["Create Spellstone (Greater)"]  = 13602,
-    ["Create Spellstone (Major)"]    = 13603,
-    ["Create Firestone (Lesser)"]    = 1254,
-    ["Create Firestone"]             = 13699,
-    ["Create Firestone (Greater)"]   = 13700,
-    ["Create Firestone (Major)"]     = 13701
+    ["Create Soulstone (Minor)"]     = stone_iid.M_SS,
+    ["Create Soulstone (Lesser)"]    = stone_iid.L_SS,
+    ["Create Soulstone"]             = stone_iid.SS,
+    ["Create Soulstone (Greater)"]   = stone_iid.G_SS,
+    ["Create Soulstone (Major)"]     = stone_iid.MAJOR_SS,
+    ["Create Spellstone"]            = stone_iid.SPELLSTONE,
+    ["Create Spellstone (Greater)"]  = stone_iid.G_SPELLSTONE,
+    ["Create Spellstone (Major)"]    = stone_iid.M_SPELLSTONE,
+    ["Create Firestone (Lesser)"]    = stone_iid.L_FIRESTONE,
+    ["Create Firestone"]             = stone_iid.FIRESTONE,
+    ["Create Firestone (Greater)"]   = stone_iid.G_FIRESTONE,
+    ["Create Firestone (Major)"]     = stone_iid.M_FIRESTONE
   }
 }
 
@@ -304,7 +339,7 @@ core.is_boss = is_boss
 
 
 --[[ Return player subzone and realzone as concatenated string --]]
-function getPlayerZone()
+local function getPlayerZone()
     local real_zone = GetRealZoneText()
     local sub_zone = GetSubZoneText()
     if sub_zone ~= nil and sub_zone ~= real_zone and sub_zone ~= "" then
@@ -316,7 +351,7 @@ end
 core.getPlayerZone = getPlayerZone
 
 -- Create a deep copy of a table
-function deep_copy(obj)
+local function deep_copy(obj)
   if type(obj) ~= 'table' then return obj end
     local res = {}
       for k, v in pairs(obj) do res[deep_copy(k)] = deep_copy(v) end
@@ -326,7 +361,7 @@ core.deep_copy = deep_copy
 
 
 --[[******* DEBUG TOOLS ********]]--
-function print_table(my_table)
+local function print_table(my_table)
   for key, val in pairs(my_table) do
     print("KEY: " .. key)
     print("VALUE: " .. val)
@@ -335,7 +370,7 @@ end
 core.print_table = print_table
 
 
-function print_shard_info(shard_mapping) 
+local function print_shard_info(shard_mapping) 
   for i=1, 5 do
     for j=1, 16 do
       if shard_mapping[i][j] ~= nil then
@@ -347,4 +382,3 @@ function print_shard_info(shard_mapping)
   end
 end
 core.print_shard_info = print_shard_info
-

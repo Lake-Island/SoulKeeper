@@ -712,9 +712,6 @@ cast_success_frame:SetScript("OnEvent",
       stone_created = true 
       print("Created " .. stone_name .. " with the soul of <" .. shard_data.name .. ">")
 
-      -- TODO: DO I want to use this?
-      --update_main_display_text("Created " .. stone_name .. " with the soul of <" .. shard_data.name .. ">")
-
     -- summon pet 
     elseif shard_consuming_spell(spell_name, core.SUMMON_PET_NAMES) and not pet_summoned then
       local shard_data = get_next_shard_data()
@@ -792,9 +789,6 @@ delete_item_frame:SetScript("OnEvent",
 -- ---> Use locked shard for all different consuming spells. Also try locking shard that WONT be used when casting shard 
 --          consuming spells
 -- ---> DELETE SHARD > then lock/unlock a different shard; will break after first attempt
--- ---> TEST: Shadowburn seems to also have a spell_batch issue; maybe add .5 seconds to its timer?
---    **** Might have had a different bug I mistook for this
---    *** TEST TEST TEST
 -- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
 --
 -- ---> Someone else fighting alliance; I also get tag? Dunno.. test drain soul on alliacne.. also on one that was already fighting 
@@ -806,7 +800,6 @@ delete_item_frame:SetScript("OnEvent",
 -- ---> Logout and test on relogin conjured items/stones still the same? What about after 15min?
 -- ---> 15min logout -- does data get cleared? Right before 15m mark, right after 15m mark.
 --        > Also test going in/out of dungeons after a while, etc... randomly died in AQ saw the clear message
--- ---> Summoning pet: Ensure it doesn't run twice
 -- ---> Test summong/moving around shards/etc..
 --        >> Move shards WHILE summong.. i.e. after initial spellcast sent
 --        >> QUESTION: Does it use the shard when SPELLCAST_SUCCESS || what if after success I move shards around? Which is used!
