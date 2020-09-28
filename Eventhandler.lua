@@ -206,8 +206,6 @@ end
 
 
 --[[ Return the bag number and slot of next shard that will be consumed --]]
--- TODO: Can add confirmation to check  actual bag_slot if shard exists there,
--- otherwise delete data from mapping and run again?
 local function find_next_shard_location()
   local next_shard = { bag = core.SLOT_NULL, slot = core.SLOT_NULL }
   for bag_num, _ in ipairs(shard_mapping) do 
@@ -460,15 +458,10 @@ end)
 ]]--
 local function drain_soul_batched(curr_time) 
   if drain_soul_end_t == nil then return false end
-  
   difference = curr_time - drain_soul_end_t
   drain_soul_end_t = nil
 
   if difference <= core.DRAIN_SOUL_DIFF then
-    -- TODO: REMOVE ME!!!! --------------------
-    print("DRAIN_SOUL_BATCHED")
-    print("DIFF: " .. difference)
-    -- TODO: REMOVE ME!!!! --------------------
     return true
   end
 
@@ -531,7 +524,6 @@ local function bag_update_shard_handler(curr_time)
       shard_added = false
       shard_mapping[bag][slot] = core.deep_copy(killed_target)
     elseif curr_time ~= last_shard_unlock_time then -- shard added for odd behavior (e.g. pet out and taking flight path)
-      print("BAG_UPDATE_TIME: ".. curr_time)
       shard_mapping[bag][slot] = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
     end
   end
@@ -607,7 +599,7 @@ bag_slot_lock_frame:SetScript("OnEvent",
       table.insert(locked_shards, curr_shard)
 
       -- TODO: REMOVE ME!!!
-      --print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
+      print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
 
     -- mark stone as 'locked'
     elseif core.STONE_ID_TO_NAME[item_id] ~= nil then
@@ -630,7 +622,6 @@ bag_slot_unlock_frame:SetScript("OnEvent",
     local item_id = GetContainerItemID(bag, slot)
     bag = bag + 1
     if item_id == core.SOUL_SHARD_ID then
-      print("UNLOCKED_TIME: ".. GetTime())
       last_shard_unlock_time = GetTime()
 
       -- ensure shard location used in summon is up to date
@@ -649,7 +640,7 @@ bag_slot_unlock_frame:SetScript("OnEvent",
       end
 
       -- TODO: REMOVE ME!!!
-      --print("Added shard --- " .. shard_mapping[bag][slot].name .. " --- to map!")
+      print("Added shard --- " .. shard_mapping[bag][slot].name .. " --- to map!")
 
     -- mark stone 'unlocked'
     elseif core.STONE_ID_TO_NAME[item_id] ~= nil then
@@ -678,6 +669,7 @@ reload_frame:SetScript("OnEvent",
     reset_expired_stone_mapping()
     player_in_raid_instance = is_player_in_raid()
     player_target_map = {}
+    update_next_open_bag_slot()
 
     -- TODO: REMOVE ME!!!! (or just add for Krel :))
     CastSpellByID(core.FIND_HERBS_SID)
@@ -794,23 +786,18 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: List of all warlocks with available SS?
 -- TODO: Blacklist (no summon list)
 
--- TODO: BUG - - - - - - - - - - - - - - - - - - 
---
--- ---> TEST: First drain_soul after reload in ZG was always null name when I hovered over shard?
---  >>>> Seems like this always occurs after a reboot
---
--- ---> Shadowburn seems to also have a spell_batch issue; maybe add .5 seconds to its timer?
+
+
+-- TODO: TESTING - - - - - - - - - - - - - - - -
+-- ---> Use locked shard for all different consuming spells. Also try locking shard that WONT be used when casting shard 
+--          consuming spells
+-- ---> DELETE SHARD > then lock/unlock a different shard; will break after first attempt
+-- ---> TEST: Shadowburn seems to also have a spell_batch issue; maybe add .5 seconds to its timer?
 --    **** Might have had a different bug I mistook for this
 --    *** TEST TEST TEST
---    >>>>> Wrote TODO in combat_log function describing possible solution
 --
---
--- TODO: TESTING - - - - - - - - - - - - - - - -
--- ---> Disable ElV-UI makesure it still looks good
 -- ---> Drain soul on enemy that I dont have tagged
--- ---> Testing saving data between sessions
 -- ---> Drain_soul/shadowburned target that does NOT yield xp/honor shouldn't get mapped || mess anything else up!
--- ---> DELETE SHARD > then lock/unlock a different shard; will break after first attempt
 -- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
 -- ---> SPELL_SUCCESS consuming SS/HS.. Test with SS consumption; swap with healthstones/different healthstones
 -- ---> Destroy stuff
@@ -818,19 +805,15 @@ delete_item_frame:SetScript("OnEvent",
 -- ---> 15min logout -- does data get cleared? Right before 15m mark, right after 15m mark.
 --        > Also test going in/out of dungeons after a while, etc... randomly died in AQ saw the clear message
 -- ---> Summoning pet: Ensure it doesn't run twice
--- ---> Drain_soul batching solution
 -- ---> Test summong/moving around shards/etc..
 --        >> Move shards WHILE summong.. i.e. after initial spellcast sent
 --        >> QUESTION: Does it use the shard when SPELLCAST_SUCCESS || what if after success I move shards around? Which is used!
--- ---> Use locked shard for all different consuming spells. Also try locking shard that WONT be used when casting shard 
---          consuming spells
+--
 --
 -- TODO: REFACTOR
 -- ---> Create getter functions for getting map values.. e.g. x = stonemapping[item_id]  should be x = get_stone(item_id); etc..
 -- ---> Refactor to no longer use spell_name is SPELLCAST_SUCCEED & get_stone_id.. use ID's instead.. would require refactoring core
 -- ---> Core code.. label magic numbers... e.g. (MINOR_SS_ITEM_ID = 66666), etc..
--- ---> find_next_shard_location() ... Can add confirmation to check  actual bag_slot if shard exists there,
--- otherwise delete data from mapping and run again?
 -- ---> 'next_shard_location' needs to be local.. that means it need sto be fixed in multiple places
 
 

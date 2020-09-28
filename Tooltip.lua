@@ -64,4 +64,3 @@ ItemRefTooltip:HookScript("OnTooltipSetItem", GameTooltip_OnTooltipSetItem)
 
 -- XXX: Current task
 -- >>> Add all 20man raid boss ids
--- >>> Spell tooltip? Will show whose soul is used?
