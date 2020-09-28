@@ -9,14 +9,14 @@ enable_chat = false
 -- data associated with soul shard
 killed_target = {
   time = -1,
-  name = "",
-  race = "",
-  class = "",
-  location = "",
-  level = nil,
+  name = nil,
+  race = nil,
+  class = nil,
+  location = nil,
   is_player = false,
-  is_boss = false
-  -- TODO: Add level if alliance? 
+  is_boss = false,
+  level = nil,
+  faction_color = nil
 }
 
 player_target_map = {}
@@ -61,6 +61,7 @@ drain_soul_data = {
   target_guid = ""
 }
 
+last_shard_unlock_time = 0
 
 local function get_shard_mapping() 
   return shard_mapping
@@ -158,9 +159,13 @@ local function set_shard_data()
       if curr_item_id == core.SOUL_SHARD_ID then
         local test_data = nil
         if count == 1 then
-          test_data = { name="Guy", race="Human", class="Mage", is_player = true, level = 60, is_boss = false }
+          test_data = { 
+            name="Guy", race="Human", class="Mage", is_player = true, level = 60, is_boss = false, faction_color = core.ALLIANCE_BLUE 
+          }
         elseif count == 2 then
-          test_data = { name="Krel", race="Undead", class="Warlock", is_player = true, level = 60, is_boss = false }
+          test_data = { 
+            name="Krel", race="Undead", class="Warlock", is_player = true, level = 60, is_boss = false, faction_color = core.HORDE_RED 
+          }
         elseif count == 3 then
           test_data = { name="Nefarian", is_boss = true }
         else
@@ -383,6 +388,11 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
         killed_target.level = player_lvl
         player_target_map[dest_guid] = nil
       end
+      -- faction color
+      killed_target.faction_color = core.ALLIANCE_BLUE
+      if core.is_faction_horde(race) then
+        killed_target.faction_color = core.HORDE_RED
+      end
     elseif core.is_boss(core.get_npc_id(dest_guid)) then
       killed_target.is_boss = true 
     end
@@ -520,7 +530,8 @@ local function bag_update_shard_handler(curr_time)
     if shard_added or drain_soul_batched(curr_time) then
       shard_added = false
       shard_mapping[bag][slot] = core.deep_copy(killed_target)
-    else -- shard added for odd behavior (e.g. pet out and taking flight path)
+    elseif curr_time ~= last_shard_unlock_time then -- shard added for odd behavior (e.g. pet out and taking flight path)
+      print("BAG_UPDATE_TIME: ".. curr_time)
       shard_mapping[bag][slot] = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
     end
   end
@@ -619,6 +630,8 @@ bag_slot_unlock_frame:SetScript("OnEvent",
     local item_id = GetContainerItemID(bag, slot)
     bag = bag + 1
     if item_id == core.SOUL_SHARD_ID then
+      print("UNLOCKED_TIME: ".. GetTime())
+      last_shard_unlock_time = GetTime()
 
       -- ensure shard location used in summon is up to date
       if summon_details.location ~= nil then

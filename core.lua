@@ -51,13 +51,14 @@ core.AURA_APPLIED = "SPELL_AURA_APPLIED"
 core.AURA_REMOVED = "SPELL_AURA_REMOVED"
 core.DEFAULT_KILLED_TARGET_DATA = {
   time = -1,
-  name = "Unkown",
-  race = "Unknown",
-  class = "Unknown",
-  location = "Unknown",
-  level = nil,
+  name = "Unknown",
+  race = nil,
+  class = nil,
+  location = nil,
   is_player = false,
-  is_boss = false
+  is_boss = false,
+  level = nil,
+  faction_color = nil
 }
 
 -- item_id of all stones

@@ -4,8 +4,8 @@ local _, core = ...
 core.ORANGE = "FF8000"
 core.BLUE = "58ACFA"
 core.PURPLE = "9F81F7"
-core.L_BLUE = "81BEF7"
-core.L_RED = "F78181"
+core.ALLIANCE_BLUE = "81BEF7"
+core.HORDE_RED = "F78181"
 core.RED = "FA5858"
 
 core.SOUL_OF = "|cFF%sSoul of <%s>"           -- color; name
@@ -28,12 +28,8 @@ local function display_soul_data(tooltip, soul)
     tooltip:AddLine(string.format(core.RAID_BOSS, core.RED))
   elseif soul.is_player then  
     local class_color = core.get_class_color(soul.class)
-    local faction_color = core.L_BLUE
-    if core.is_faction_horde(soul.race) then 
-      faction_color = core.L_RED 
-    end
     tooltip:AddLine(string.format(core.SOUL_OF, class_color, soul.name))
-    tooltip:AddLine(string.format(core.PLAYER_DETAILS, faction_color, soul.level, soul.race, soul.class))
+    tooltip:AddLine(string.format(core.PLAYER_DETAILS, soul.faction_color, soul.level, soul.race, soul.class))
   else 
     tooltip:AddLine(string.format(core.SOUL_OF, core.PURPLE, soul.name))
   end
@@ -67,6 +63,5 @@ GameTooltip:HookScript("OnTooltipSetItem", GameTooltip_OnTooltipSetItem)
 ItemRefTooltip:HookScript("OnTooltipSetItem", GameTooltip_OnTooltipSetItem)
 
 -- XXX: Current task
--- >>> Stones also show info
 -- >>> Add all 20man raid boss ids
 -- >>> Spell tooltip? Will show whose soul is used?
