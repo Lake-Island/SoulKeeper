@@ -195,11 +195,9 @@ core.toggle_chat = toggle_chat
 
 
 --[[ Return true if the spell consumes a shard; false otherwise --]]
-local function shard_consuming_spell(spell_name, spell_list)
-  for _, shard_spell in pairs(spell_list) do
-    if string.find(spell_name,shard_spell) then
-      return true
-    end
+local function shard_consuming_spell(spell_id, spell_list)
+  if spell_list[spell_id] ~= nil then
+    return true
   end
   return false
 end
@@ -279,7 +277,7 @@ end
 -- get item id of stone associated with conjure spell
 local function get_stone_item_id(spell_id, spell_name)
   -- hs; query with pts in imp. hs
-  if core.CREATE_HS_SID[spell_id] ~= nil then
+  if core.is_spell_create_hs(spell_id) then
     imp_hs_pts = get_total_pts_imp_hs() 
     return core.SPELL_NAME_TO_ITEM_ID[core.HS][spell_name][imp_hs_pts]
   -- non-hs
@@ -576,6 +574,8 @@ item_frame:SetScript("OnEvent",
     update_next_open_bag_slot()
   end)
 
+  -- TODO: Want to remove it from its original place not when its LOCKED but when its UNLOCKED. So if i move it without swap once 
+  -- its placed in new place its old place is overwritte, otherwise i just lock without moving it stays.
 
 --[[
   When a soul shard is locked (selected from inventory), save its data
@@ -595,6 +595,7 @@ bag_slot_lock_frame:SetScript("OnEvent",
       curr_shard.bag = bag+1 -- bag 0 indexed
       curr_shard.slot = slot
       curr_shard.data = shard_mapping[curr_shard.bag][curr_shard.slot]
+
       table.insert(locked_shards, curr_shard)
 
       shard_mapping[curr_shard.bag][curr_shard.slot] = nil
@@ -603,7 +604,8 @@ bag_slot_lock_frame:SetScript("OnEvent",
       print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
 
     -- mark stone as 'locked'
-    elseif core.STONE_ID_TO_NAME[item_id] ~= nil then
+    -- TODO: Getter for this?
+    elseif core.STONE_IID_TO_NAME[item_id] ~= nil then
       locked_stone_iid = item_id
     end
   end)
@@ -644,7 +646,7 @@ bag_slot_unlock_frame:SetScript("OnEvent",
       print("Added shard --- " .. shard_mapping[bag][slot].name .. " --- to map!")
 
     -- mark stone 'unlocked'
-    elseif core.STONE_ID_TO_NAME[item_id] ~= nil then
+    elseif core.STONE_IID_TO_NAME[item_id] ~= nil then
       locked_stone_iid = {}
     end
   end)
@@ -700,11 +702,11 @@ cast_success_frame:SetScript("OnEvent",
     local consumed_stone_iid = is_consume_stone_spell(spell_id)
 
     -- conjure stone 
-    if shard_consuming_spell(spell_name, core.CONJURE_STONE_NAMES) and not stone_created then
+    if shard_consuming_spell(spell_id, core.CREATE_STONE_SID) and not stone_created then
       local shard_data, next_shard_location = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.slot] = nil
       stone_iid = get_stone_item_id(spell_id, spell_name)
-      stone_name = core.STONE_ID_TO_NAME[stone_iid]
+      stone_name = core.STONE_IID_TO_NAME[stone_iid]
       stone_mapping[stone_iid] = shard_data
 
       reset_consumed_locked_shard_data(next_shard_location)
@@ -714,7 +716,7 @@ cast_success_frame:SetScript("OnEvent",
       print("Created " .. stone_name .. " with the soul of <" .. shard_data.name .. ">")
 
     -- summon pet 
-    elseif shard_consuming_spell(spell_name, core.SUMMON_PET_NAMES) and not pet_summoned then
+    elseif shard_consuming_spell(spell_id, core.SUMMON_PET_SID) and not pet_summoned then
       local shard_data, next_shard_location = get_next_shard_data()
       shard_mapping[next_shard_location.bag][next_shard_location.slot] = nil
 
@@ -765,7 +767,7 @@ local delete_item_frame = CreateFrame("Frame")
 delete_item_frame:RegisterEvent("DELETE_ITEM_CONFIRM")
 delete_item_frame:SetScript("OnEvent", 
   function(self,event,...)
-    if locked_shards[1] ~= nil then
+    if #locked_shards > 0 then
       shard_deleted = true
     elseif locked_stone_iid ~= nil then
       stone_deleted = true
@@ -773,15 +775,25 @@ delete_item_frame:SetScript("OnEvent",
   end)
  
 
-
--- TODO: When trading HS -- whisper player the name of the soul!
--- TODO: Enslave demon; make sure all shard using spells accounted for; be sure to test them
+-- TODO: Go through all TODO's in code
 -- TODO: Update announced messages, if alliance add information... etc..
--- TODO: Custom message can be written by user through console
 -- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
+-- TODO: ADD 20 man raid boss ID's to core
+-- TODO: ADD shards to end of bag option
 --
+-- TODO: Enslave demon; make sure all shard using spells accounted for; be sure to test them
+-- TODO: When trading HS -- whisper player the name of the soul!
+-- TODO: Custom message can be written by user through console
+--
+-- TODO: BUG ----------------------------------------------
+--  1. Start creating stone.. unlock shard that will be used.. the next one gets used NOT the unlocked one (due to me setting to nil on unlock)
+--  2. Killed alliance rogue.. saved shard.. now every shard I get has the enemy name but thinks its that level 60 alliance rogue just 
+--      a different name
+--      >> Weird issue with levels and tooltip thinking non-alliacne is alliance
+--      >> Axe thrower in ZG was labeled as a raid boss..
 
 -- TODO: TESTING - - - - - - - - - - - - - - - -
+-- ---> TEST CREATING EVERY STONE / CASTING EVERY PET
 -- ---> Use locked shard for all different consuming spells. Also try locking shard that WONT be used when casting shard 
 --          consuming spells
 -- ---> DELETE SHARD > then lock/unlock a different shard; will break after first attempt
@@ -802,7 +814,6 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: REFACTOR
 -- ---> Create getter functions for getting map values.. e.g. x = stonemapping[item_id]  should be x = get_stone(item_id); etc..
 -- ---> Refactor to no longer use spell_name is SPELLCAST_SUCCEED & get_stone_id.. use ID's instead.. would require refactoring core
--- ---> 'next_shard_location' needs to be local.. that means it need sto be fixed in multiple places
 
 
 

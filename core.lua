@@ -2,6 +2,7 @@ local _, core = ...
 
 core.HS = "HS"
 core.NON_HS = "NON-HS"
+core.HEALTHSTONE = "Healthstone"
 core.CHAT_TYPE_RAID = "RAID"
 core.CHAT_TYPE_PARTY = "PARTY"
 core.SS_MESSAGE = "%s, the soul of <%s> is yours!"
@@ -23,17 +24,13 @@ core.NORMAL_BAG_TYPE = 0
 core.SOUL_SHARD_ID = 6265
 core.DRAIN_SOUL = "Drain Soul"
 core.RITUAL_OF_SUMM = "Ritual of Summoning"
-core.CONJURE_STONE_NAMES = {
-  HS = "Create Healthstone",
-  SS = "Create Soulstone",
-  FS = "Create Firestone",
-  SPELL_S = "Create Spellstone",
+
+core.SUMMON_PET_SID = {
+  [697] = "Summon Voidwalker",
+  [712] = "Summon Succubus",
+  [691] = "Summon Felhunter"
 }
-core.SUMMON_PET_NAMES = {
-  SUMMON_VW = "Summon Voidwalker",
-  SUMMON_SUCCUBUS = "Summon Succubus",
-  SUMMON_FELHUNTER = "Summon Felhunter"
-}
+
 core.MISC_SPELL_NAMES = {
   SUMMON = "Ritual of Summoning",
   -- TODO: 
@@ -94,9 +91,14 @@ local stone_iid = {
   M_FIRESTONE = 13701
 }
 
+local stone_sid = {
+
+}
+
+
 -- item_id of all stones
--- TODO: What do I use this for?
-core.STONE_ID_TO_NAME = {
+-- TODO: What do I use this for? -- can make getter for this
+core.STONE_IID_TO_NAME = {
   [stone_iid.M_HS_1] = 'Minor Healthstone',
   [stone_iid.M_HS_2] = 'Minor Healthstone',
   [stone_iid.M_HS_3] = 'Minor Healthstone',
@@ -125,6 +127,7 @@ core.STONE_ID_TO_NAME = {
   [stone_iid.G_FIRESTONE] = 'Greater Firestone',
   [stone_iid.M_FIRESTONE] = 'Major Firestone'
 }
+
 
 -- soulstone ressurection spell_id to item_id
 core.CONSUME_SS_SID_TO_IID = {
@@ -160,14 +163,37 @@ core.CONSUME_HS_SID_TO_IID = {
   [23477] = stone_iid.MAJOR_HS_3,
 }
 
-
-core.CREATE_HS_SID = {
+core.CREATE_STONE_SID = {
   [6201]  = "Create Healthstone (Minor)",
   [6202]  = "Create Healthstone (Lesser)",
   [5699]  = "Create Healthstone",
   [11729] = "Create Healthstone (Greater)",
-  [11730] = "Create Healthstone (Major)"
+  [11730] = "Create Healthstone (Major)",
+  [693]   = "Create Soulstone (Minor)",
+  [20752] = "Create Soulstone (Lesser)",
+  [20755] = "Create Soulstone",
+  [20756] = "Create Soulstone (Greater)",
+  [20757] = "Create Soulstone (Major)",
+  [2362]  = "Create Spellstone",
+  [17727] = "Create Spellstone (Greater)",
+  [17728] = "Create Spellstone (Major)",
+  [6366]  = "Create Firestone (Lesser)",
+  [17951] = "Create Firestone",
+  [17952] = "Create Firestone (Greater)",
+  [17953] = "Create Firestone (Major)",
 }
+
+
+-- TODO: MOVE ME
+local function is_spell_create_hs(spell_id)
+  local spell_name = core.CREATE_STONE_SID[spell_id]
+  if spell_name ~= nil and string.find(spell_name, core.HEALTHSTONE) then
+    return true
+  end
+  return false
+end
+core.is_spell_create_hs = is_spell_create_hs
+
 
 -- HS mapped to consume HS spell_id
 -- NON_HS mappted to item_id
@@ -308,7 +334,7 @@ core.is_faction_horde = is_faction_horde
 
 
 local function is_item_id_stone(item_id)
-  if core.STONE_ID_TO_NAME[item_id] ~= nil then
+  if core.STONE_IID_TO_NAME[item_id] ~= nil then
     return true
   end
   return false
