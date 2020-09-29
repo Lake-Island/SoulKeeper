@@ -357,7 +357,7 @@ core.is_boss = is_boss
 
 
 --[[ Return player subzone and realzone as concatenated string --]]
-local function getPlayerZone()
+local function get_player_zone()
     local real_zone = GetRealZoneText()
     local sub_zone = GetSubZoneText()
     if sub_zone ~= nil and sub_zone ~= real_zone and sub_zone ~= "" then
@@ -366,7 +366,7 @@ local function getPlayerZone()
       return real_zone
     end
 end
-core.getPlayerZone = getPlayerZone
+core.get_player_zone = get_player_zone
 
 -- Create a deep copy of a table
 local function deep_copy(obj)
@@ -385,6 +385,16 @@ local function table_contains(tab, value)
   return false
 end
 core.table_contains = table_contains
+
+
+local function is_player_in_raid()
+  local _, instance_type = GetInstanceInfo()
+  if instance_type == core.RAID then
+    return true
+  end
+  return false
+end
+core.is_player_in_raid = is_player_in_raid
 
 
 --[[******* DEBUG TOOLS ********]]--

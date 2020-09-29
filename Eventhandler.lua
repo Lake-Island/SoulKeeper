@@ -83,7 +83,8 @@ end
 
 
 -- TODO: Dont like how these fields are just copy pasted
--- TODO: Also dont like how killed_target_data is a global function -- can I change this?
+-- TODO: Also dont like how killed_target is a global variable -- can I change this?
+-- TODO: Kill target but dont drain soul... does kill_target data reset? 
 local function reset_killed_target_data()
   killed_target = {
     id = -1,
@@ -369,8 +370,6 @@ current_target_frame:SetScript("OnEvent",
 
 --[[
   Reset locked shard data when the locked shard was consumed.
--- TODO: Change 'next_shard_location' to be local instead of global. Can then call the function 
--- directly.
 --]]
 local function reset_consumed_locked_shard_data(shard_location)
   local locked_shard = locked_shards[1]
@@ -378,6 +377,63 @@ local function reset_consumed_locked_shard_data(shard_location)
     if locked_shard.bag == shard_location.bag and 
        locked_shard.slot == shard_location.slot then
       locked_shards = {}
+    end
+  end
+end
+
+
+local function set_killed_target(dest_name, dest_guid)
+  reset_killed_target_data()
+
+  killed_target.id = GetServerTime()
+  killed_target.name = dest_name 
+  killed_target.location = core.get_player_zone()
+
+  if is_target_player(dest_guid) then 
+    local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
+    killed_target.race = race_name
+    killed_target.class = class_name
+    killed_target.is_player = true 
+
+    killed_target.faction_color = core.ALLIANCE_BLUE
+    if core.is_faction_horde(race) then
+      killed_target.faction_color = core.HORDE_RED
+    end
+
+    if core.table_contains(player_target_map, dest_guid) then
+      killed_target.level = player_target_map[dest_guid]
+      player_target_map[dest_guid] = nil
+    end
+
+  elseif core.is_boss(core.get_npc_id(dest_guid)) then
+    killed_target.is_boss = true 
+  end
+end
+
+
+--[[ Track details of cast shadowburn (e.g. debuff duration) ]]--
+local function shadowburn_aura_handler(subevent, dest_guid, curr_time)
+  if subevent == core.AURA_APPLIED then
+    set_shadowburn_data(dest_guid, GetTime(curr_time))
+  elseif subevent == core.AURA_REMOVED and 
+         shadowburn_data.end_time ~= nil and curr_time >= shadowburn_data.end_time then
+    reset_shadowburn_data()
+  end
+end
+
+
+local function add_next_shard()
+  -- shard consuming spell active on killed target; reset corresponding data
+  if shadowburn_data.applied or drain_soul_data.casting then
+    if shadowburn_data.target_guid == dest_guid then
+      reset_shadowburn_data()
+    end
+    if drain_soul_data.target_guid == dest_guid then
+      reset_drain_soul_data()
+    end
+    -- shard added if space available in bag
+    if next(next_open_shard_slot) ~= nil then 
+      shard_added = true
     end
   end
 end
@@ -398,53 +454,11 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
   end
 
   -- save info of dead target
-  -- TODO: HELPER FUNCTION
-  -- TODO: Should I map killed target guid to killed_target data? Think about this; could it work; necessary?
   if subevent == event_to_execute then 
-    killed_target.id = GetServerTime()
-    killed_target.name = dest_name 
-    killed_target.location = core.getPlayerZone()
-    if is_target_player(dest_guid) then -- non npc?
-      local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
-      killed_target.race = race_name
-      killed_target.class = class_name
-      killed_target.is_player = true 
-      local player_lvl = player_target_map[dest_guid]
-      if player_lvl ~= nil then
-        killed_target.level = player_lvl
-        player_target_map[dest_guid] = nil
-      end
-      -- faction color
-      killed_target.faction_color = core.ALLIANCE_BLUE
-      if core.is_faction_horde(race) then
-        killed_target.faction_color = core.HORDE_RED
-      end
-    elseif core.is_boss(core.get_npc_id(dest_guid)) then
-      killed_target.is_boss = true 
-    end
-
-    -- shard consuming spell active on killed target; reset corresponding data
-    if shadowburn_data.applied or drain_soul_data.casting then
-      if shadowburn_data.target_guid == dest_guid then
-        reset_shadowburn_data()
-      end
-      if drain_soul_data.target_guid == dest_guid then
-        reset_drain_soul_data()
-      end
-      -- shard added if space available in bag
-      if next(next_open_shard_slot) ~= nil then 
-        shard_added = true
-      end
-    end
-    
-  -- track details of cast shadowburn (e.g. debuff duration)
+    set_killed_target(dest_name, dest_guid)
+    add_next_shard()
   elseif spell_name == core.SHADOWBURN then
-    if subevent == core.AURA_APPLIED then
-      set_shadowburn_data(dest_guid, GetTime(curr_time))
-    -- TODO: Ugly fix this if condition now so many ands..
-    elseif subevent == core.AURA_REMOVED and shadowburn_data.end_time ~= nil and curr_time >= shadowburn_data.end_time then
-      reset_shadowburn_data()
-    end
+    shadowburn_aura_handler(subevent, dest_guid, curr_time)
   end
 end)
 
@@ -512,7 +526,6 @@ local function successful_summon_handler(curr_time)
       print("Successful summon --- Removing soul: " .. curr_shard_data.name)
       -- TODO: REMOVE ME -----------------------------------
 
-      -- TODO: Reset locked shard data if shard consumed was locked
       reset_consumed_locked_shard_data(summon_details.location)
       set_shard(summon_details.location.bag, summon_details.location.slot, nil)
     end
@@ -546,12 +559,11 @@ local function bag_update_shard_handler(curr_time)
     if shard_added or drain_soul_batched(curr_time) then
       shard_added = false
       set_shard(bag, slot, core.deep_copy(killed_target))
-      reset_killed_target_data()
     elseif curr_time ~= last_shard_unlock_time then -- shard added for odd behavior (e.g. pet out and taking flight path)
+      -- TODO: Create a function that will automatically handle killed_target allocation?
       local killed_target_copy = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
       killed_target_copy.id = GetServerTime()
       set_shard(bag, slot, killed_target_copy)
-      reset_killed_target_data()
     end
   end
 
@@ -626,12 +638,8 @@ bag_slot_lock_frame:SetScript("OnEvent",
 
       table.insert(locked_shards, locked_shard)
 
-      -- TODO: REMOVE ME!!!
-      print("Removing shard --- " .. locked_shard.data.name .. " --- from map!")
-
     -- mark stone as 'locked'
-    -- TODO: Getter for this?
-    elseif core.STONE_IID_TO_NAME[item_id] ~= nil then
+    elseif core.table_contains(core.STONE_IID_TO_NAME, item_id) then
       locked_stone_iid = item_id
     end
   end)
@@ -688,24 +696,12 @@ bag_slot_unlock_frame:SetScript("OnEvent",
       remove_old_shard_data(removed_locked_shard)
       set_shard(bag, slot, removed_locked_shard.data)
 
-      -- TODO: REMOVE ME!!!
-      print("Added shard --- " .. get_shard(bag,slot).name .. " --- to map!")
-
     -- mark stone 'unlocked'
-    elseif core.STONE_IID_TO_NAME[item_id] ~= nil then
+    elseif core.table_contains(core.STONE_IID_TO_NAME, item_id) then
       locked_stone_iid = {}
     end
   end)
 
-
--- TODO: MOVE ME TO CORE?!!!!
-local function is_player_in_raid()
-  local _, instance_type = GetInstanceInfo()
-  if instance_type == core.RAID then
-    return true
-  end
-  return false
-end
 
 
 local reload_frame = CreateFrame("Frame")
@@ -716,7 +712,7 @@ reload_frame:SetScript("OnEvent",
     --set_default_shard_data()
     set_shard_data()
     reset_expired_stone_mapping()
-    player_in_raid_instance = is_player_in_raid()
+    player_in_raid_instance = core.is_player_in_raid()
     player_target_map = {}
     update_next_open_bag_slot()
 
@@ -786,6 +782,7 @@ cast_success_frame:SetScript("OnEvent",
       print("SPELLCAST_SUCCESS: SUMMON PREDICTING USE OF SOUL: " .. summ_name.name)
       -- TODO: REMOVE ME ---------------
 
+    -- TODO: ALOT OF SIMILAR CODE HERE.. enslave demon and soul_fire are exactly the same 
     elseif core.list_contains(core.SOUL_FIRE_SID, spell_id) then
       local shard_data, next_shard_location = get_next_shard_data()
       set_shard(next_shard_location.bag, next_shard_location.slot, nil)
@@ -809,7 +806,6 @@ cast_sent_frame:SetScript("OnEvent",
     local ss_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
 
     if ss_iid ~= nil then 
-      -- local stone_data = stone_mapping[ss_iid]
       local stone_data = get_stone(ss_iid)
       local mssg = string.format(core.SS_MESSAGE, target, stone_data.name)
       message_active_party(mssg)
@@ -834,6 +830,10 @@ delete_item_frame:SetScript("OnEvent",
   end)
  
 
+------------------ REFACTOR -------------------
+-- TODO: Cleanup code
+-->>> SUCCEEDED has a lot of repeated code 
+-- --------------------------TODO-------------------
 -- TODO: Go through all TODO's in code
 -- TODO: Update announced messages, if alliance add information... etc..
 -- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
