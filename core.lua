@@ -31,6 +31,9 @@ core.SUMMON_PET_SID = {
   [691] = "Summon Felhunter"
 }
 
+core.SOUL_FIRE_SID = { 6353, 17924 }
+core.ENSLAVE_DEMON_SID = { 1098, 11725, 11726 }
+
 -- Misc
 core.PARTY_KILL  = "PARTY_KILL"
 core.UNIT_DIED  = "UNIT_DIED"
@@ -301,8 +304,8 @@ local class_colors = {
 local horde_factions = { "Orc", "Undead", "Tauren", "Troll" }
 
 
-local function has_value(tab, val)
-    for index, value in ipairs(tab) do
+local function list_contains(list, val)
+    for index, value in ipairs(list) do
         if value == val then
             return true
         end
@@ -310,10 +313,11 @@ local function has_value(tab, val)
 
     return false
 end
+core.list_contains = list_contains
 
 
 local function is_faction_horde(race)
-  if has_value(horde_factions, race) then
+  if list_contains(horde_factions, race) then
     return true
   end
   return false
@@ -344,7 +348,7 @@ core.get_npc_id = get_npc_id
 
 
 local function is_boss(npc_id)
-  if has_value(boss_id, npc_id) then
+  if list_contains(boss_id, npc_id) then
     return true
   end
   return false
