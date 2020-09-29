@@ -8,7 +8,7 @@ enable_chat = false
 
 -- data associated with soul shard
 killed_target = {
-  time = -1,
+  id = -1,
   name = nil,
   race = nil,
   class = nil,
@@ -171,6 +171,7 @@ local function set_shard_data()
         else
           test_data = { name=string.format("shard_%d", count) }
         end
+        test_data.id = count
         count = count + 1
         shard_mapping[bag_num+1][slot_num] = core.deep_copy(test_data)
       end
@@ -370,7 +371,7 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
   -- save info of dead target
   -- TODO: HELPER FUNCTION
   if subevent == event_to_execute then 
-    killed_target.time = curr_time
+    killed_target.id = GetServerTime()
     killed_target.name = dest_name 
     killed_target.location = core.getPlayerZone()
     if is_target_player(dest_guid) then -- non npc?
@@ -408,15 +409,10 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
     
   -- track details of cast shadowburn (e.g. debuff duration)
   elseif spell_name == core.SHADOWBURN then
-    curr_time = GetTime()
     if subevent == core.AURA_APPLIED then
       set_shadowburn_data(dest_guid, GetTime(curr_time))
     -- TODO: Ugly fix this if condition now so many ands..
     elseif subevent == core.AURA_REMOVED and shadowburn_data.end_time ~= nil and curr_time >= shadowburn_data.end_time then
-      -- TODO: Maybe save timestamp when it was removed, then check when target was killed 
-      -- if it was .5 seconds in that window or w/e
-      -- >>> e.g. about condition would also check if timestamp fits idfference threshold
-      print("Shadowburn Aura - Removed") -- TODO: REMOVE ME!!!
       reset_shadowburn_data()
     end
   end
@@ -521,7 +517,9 @@ local function bag_update_shard_handler(curr_time)
       shard_added = false
       shard_mapping[bag][slot] = core.deep_copy(killed_target)
     elseif curr_time ~= last_shard_unlock_time then -- shard added for odd behavior (e.g. pet out and taking flight path)
-      shard_mapping[bag][slot] = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
+      local killed_targ = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
+      killed_targ.id = GetServerTime()
+      shard_mapping[bag][slot] = killed_targ
     end
   end
 
@@ -574,8 +572,6 @@ item_frame:SetScript("OnEvent",
     update_next_open_bag_slot()
   end)
 
-  -- TODO: Want to remove it from its original place not when its LOCKED but when its UNLOCKED. So if i move it without swap once 
-  -- its placed in new place its old place is overwritte, otherwise i just lock without moving it stays.
 
 --[[
   When a soul shard is locked (selected from inventory), save its data
@@ -591,17 +587,15 @@ bag_slot_lock_frame:SetScript("OnEvent",
     local item_id = GetContainerItemID(bag, slot)
     if item_id == core.SOUL_SHARD_ID then
       -- add shard to table of currently locked shards
-      local curr_shard = {}
-      curr_shard.bag = bag+1 -- bag 0 indexed
-      curr_shard.slot = slot
-      curr_shard.data = shard_mapping[curr_shard.bag][curr_shard.slot]
+      local locked_shard = {}
+      locked_shard.bag = bag+1 -- bag 0 indexed
+      locked_shard.slot = slot
+      locked_shard.data = shard_mapping[locked_shard.bag][locked_shard.slot]
 
-      table.insert(locked_shards, curr_shard)
-
-      shard_mapping[curr_shard.bag][curr_shard.slot] = nil
+      table.insert(locked_shards, locked_shard)
 
       -- TODO: REMOVE ME!!!
-      print("Removing shard --- " .. curr_shard.data.name .. " --- from map!")
+      print("Removing shard --- " .. locked_shard.data.name .. " --- from map!")
 
     -- mark stone as 'locked'
     -- TODO: Getter for this?
@@ -609,6 +603,19 @@ bag_slot_lock_frame:SetScript("OnEvent",
       locked_stone_iid = item_id
     end
   end)
+
+
+--[[
+  Remove stale data from shards old (locking) position.
+]]--
+local function remove_old_shard_data(shard)
+  local old_bag  = shard.bag
+  local old_slot = shard.slot
+  local old_slot_id = shard_mapping[old_bag][old_slot].id
+  if old_slot_id == shard.data.id then
+    shard_mapping[old_bag][old_slot] = nil
+  end
+end
 
 
 --[[
@@ -632,15 +639,19 @@ bag_slot_unlock_frame:SetScript("OnEvent",
         summon_details.location = find_next_shard_location()
       end
 
-      -- select correct shard to insert from table of unlocked shards
-      for index, curr_shard in pairs(locked_shards) do
-        if #locked_shards == 1 then
-          shard_mapping[bag][slot] = table.remove(locked_shards,index).data
-        elseif curr_shard.bag ~= bag or (curr_shard.bag == bag and curr_shard.slot ~= slot) then
-            shard_mapping[bag][slot] = table.remove(locked_shards,index).data
-            break
+      -- when swapping shards, dont swap with self
+      local remove_index = 1
+      for index, locked_shard in pairs(locked_shards) do
+        if locked_shard.bag ~= bag or (locked_shard.bag == bag and locked_shard.slot ~= slot) then
+          remove_index = index
+          break
         end
       end
+
+      -- remove stale data
+      local removed_locked_shard = table.remove(locked_shards, remove_index)
+      remove_old_shard_data(removed_locked_shard)
+      shard_mapping[bag][slot] = removed_locked_shard.data
 
       -- TODO: REMOVE ME!!!
       print("Added shard --- " .. shard_mapping[bag][slot].name .. " --- to map!")

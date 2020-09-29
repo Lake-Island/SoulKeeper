@@ -47,7 +47,7 @@ core.SHADOWBURN_DEBUFF_TIME = 5
 core.AURA_APPLIED = "SPELL_AURA_APPLIED"
 core.AURA_REMOVED = "SPELL_AURA_REMOVED"
 core.DEFAULT_KILLED_TARGET_DATA = {
-  time = -1,
+  id = -1,
   name = "Unknown",
   race = nil,
   class = nil,
@@ -293,8 +293,9 @@ local boss_id = {
     16064, -- Korthazz
     -- TODO: Add 20man boss id
     14517, -- jeklik
-    14507, -- 
-    14510, -- 
+    14507, -- Venoxis
+    14510, -- Mar'li
+    11382, -- Mandokir
     14834, -- hakkar
 }
 
