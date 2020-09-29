@@ -1,9 +1,7 @@
 local _, core = ...
 
--- TODO: TEMP -- or is it?
 drain_soul_end_t = nil
 
--- TODO: Put somewhere else?
 enable_chat = false
 
 -- data associated with soul shard
@@ -62,6 +60,23 @@ drain_soul_data = {
 }
 
 last_shard_unlock_time = 0
+
+--TODO XXX: get_shard, set_shard, get_stone, set_stone
+local function get_shard(bag, slot)
+  return shard_mapping[bag][slot]
+end
+
+local function set_shard(bag, slot, val)
+  shard_mapping[bag][slot] = val
+end
+
+local function get_stone(stone_iid)
+  return stone_mapping[stone_iid]
+end
+
+local function set_stone(stone_iid, val)
+  stone_mapping[stone_iid] = val
+end
 
 -- TODO: Dont like how these fields are just copy pasted
 -- TODO: Also dont like how killed_target_data is a global function -- can I change this?
@@ -146,13 +161,15 @@ end
 ]]--
 local function set_default_shard_data()
   for bag_num = 0, core.MAX_BAG_INDEX, 1 do
-    num_bag_slots = GetContainerNumSlots(bag_num)
+    local num_bag_slots = GetContainerNumSlots(bag_num)
     for slot_num = 1, num_bag_slots, 1 do
-      curr_item_id = GetContainerItemID(bag_num, slot_num)
-      curr_shard_slot = shard_mapping[bag_num+1][slot_num]
+      local curr_item_id = GetContainerItemID(bag_num, slot_num)
+      -- XXX curr_shard_slot = shard_mapping[bag_num+1][slot_num]
+      local curr_shard_slot = get_shard(bag_num+1, slot_num)
       -- unmapped soul shard; map it.
       if curr_item_id == core.SOUL_SHARD_ID and curr_shard_slot == nil then
-        shard_mapping[bag_num+1][slot_num] = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
+        -- XXX shard_mapping[bag_num+1][slot_num] = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
+        set_shard(bag_num+1, slot_num, core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA))
       end
     end
   end 
@@ -167,10 +184,11 @@ local function set_shard_data()
   local count = 1
   shard_mapping = { {}, {}, {}, {}, {} }
   for bag_num = 0, core.MAX_BAG_INDEX, 1 do
-    num_bag_slots = GetContainerNumSlots(bag_num)
+    local num_bag_slots = GetContainerNumSlots(bag_num)
     for slot_num = 1, num_bag_slots, 1 do
-      curr_item_id = GetContainerItemID(bag_num, slot_num)
-      curr_shard_slot = shard_mapping[bag_num+1][slot_num]
+      local curr_item_id = GetContainerItemID(bag_num, slot_num)
+      --curr_shard_slot = shard_mapping[bag_num+1][slot_num]
+      local curr_shard_slot = get_shard(bag_num+1,slot_num)
       -- unmapped soul shard; map it.
       if curr_item_id == core.SOUL_SHARD_ID then
         local test_data = nil
@@ -189,7 +207,8 @@ local function set_shard_data()
         end
         test_data.id = count
         count = count + 1
-        shard_mapping[bag_num+1][slot_num] = core.deep_copy(test_data)
+        --shard_mapping[bag_num+1][slot_num] = core.deep_copy(test_data)
+        set_shard(bag_num+1, slot_num, core.deep_copy(test_data))
       end
     end
   end 
@@ -210,14 +229,6 @@ local function toggle_chat()
 end
 core.toggle_chat = toggle_chat
 
-
---[[ Return true if the spell consumes a shard; false otherwise --]]
-local function shard_consuming_spell(spell_id, spell_list)
-  if spell_list[spell_id] ~= nil then
-    return true
-  end
-  return false
-end
 
 
 --[[ Return the bag number and slot of next shard that will be consumed --]]
@@ -244,7 +255,8 @@ local function get_next_shard_data()
   if next_shard_location.bag == core.SLOT_NULL then -- prevents duplicate executions
     return nil
   end
-  local shard_data = shard_mapping[next_shard_location.bag][next_shard_location.slot]
+  -- XXX local shard_data = shard_mapping[next_shard_location.bag][next_shard_location.slot]
+  local shard_data = get_shard(next_shard_location.bag, next_shard_location.slot)
   return shard_data, next_shard_location
 end
 
@@ -495,13 +507,15 @@ local function successful_summon_handler(curr_time)
     if difference <= core.SUCCESSFUL_SUMMON_DIFF then 
 
       -- TODO: REMOVE ME -----------------------------------
-      local curr_shard_data = shard_mapping[summon_details.location.bag][summon_details.location.slot] 
+      -- XXX local curr_shard_data = shard_mapping[summon_details.location.bag][summon_details.location.slot] 
+      local curr_shard_data = get_shard(summon_details.location.bag, summon_details.location.slot)
       print("Successful summon --- Removing soul: " .. curr_shard_data.name)
       -- TODO: REMOVE ME -----------------------------------
 
       -- TODO: Reset locked shard data if shard consumed was locked
       reset_consumed_locked_shard_data(summon_details.location)
-      shard_mapping[summon_details.location.bag][summon_details.location.slot] = nil
+      -- XXX shard_mapping[summon_details.location.bag][summon_details.location.slot] = nil
+      set_shard(summon_details.location.bag, summon_details.location.slot, nil)
     end
 
     reset_summon_details()
@@ -532,12 +546,14 @@ local function bag_update_shard_handler(curr_time)
   if item_id == core.SOUL_SHARD_ID then
     if shard_added or drain_soul_batched(curr_time) then
       shard_added = false
-      shard_mapping[bag][slot] = core.deep_copy(killed_target)
+      -- XXX shard_mapping[bag][slot] = core.deep_copy(killed_target)
+      set_shard(bag, slot, core.deep_copy(killed_target))
       reset_killed_target_data()
     elseif curr_time ~= last_shard_unlock_time then -- shard added for odd behavior (e.g. pet out and taking flight path)
-      local killed_targ = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
-      killed_targ.id = GetServerTime()
-      shard_mapping[bag][slot] = killed_targ
+      local killed_target_copy = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
+      killed_target_copy.id = GetServerTime()
+      -- XXX shard_mapping[bag][slot] = killed_target_copy
+      set_shard(bag, slot, killed_target_copy)
       reset_killed_target_data()
     end
   end
@@ -545,7 +561,8 @@ local function bag_update_shard_handler(curr_time)
   -- unless deleted, shards never 'lock' during bag_update
   if shard_deleted then 
     local del_shard = locked_shards[1]
-    shard_mapping[del_shard.bag][del_shard.slot] = nil
+    -- XXX shard_mapping[del_shard.bag][del_shard.slot] = nil
+    set_shard(del_shard.bag, del_shard.slot, nil)
     shard_deleted = false
     locked_shards =  {}
   end
@@ -558,7 +575,8 @@ local function bag_update_stone_handler()
   end
 
   if stone_deleted then
-    stone_mapping[locked_stone_iid] = nil
+    -- XXX stone_mapping[locked_stone_iid] = nil
+    set_stone(locked_stone_iid, nil)
     stone_deleted = false
     locked_stone_iid = {}
   end
@@ -609,7 +627,8 @@ bag_slot_lock_frame:SetScript("OnEvent",
       local locked_shard = {}
       locked_shard.bag = bag+1 -- bag 0 indexed
       locked_shard.slot = slot
-      locked_shard.data = shard_mapping[locked_shard.bag][locked_shard.slot]
+      -- XXX locked_shard.data = shard_mapping[locked_shard.bag][locked_shard.slot]
+      locked_shard.data = get_shard(locked_shard.bag, locked_shard.slot)
 
       table.insert(locked_shards, locked_shard)
 
@@ -630,9 +649,11 @@ bag_slot_lock_frame:SetScript("OnEvent",
 local function remove_old_shard_data(shard)
   local old_bag  = shard.bag
   local old_slot = shard.slot
-  local old_slot_id = shard_mapping[old_bag][old_slot].id
-  if old_slot_id == shard.data.id then
-    shard_mapping[old_bag][old_slot] = nil
+  --XXX local old_slot_id = shard_mapping[old_bag][old_slot].id
+  local old_id = get_shard(old_bag, old_slot).id
+  if old_id == shard.data.id then
+    -- XXX shard_mapping[old_bag][old_slot] = nil
+    set_shard(old_bag, old_slot, nil)
   end
 end
 
@@ -650,6 +671,9 @@ bag_slot_unlock_frame:SetScript("OnEvent",
     local bag, slot = ...
     local item_id = GetContainerItemID(bag, slot)
     bag = bag + 1
+
+    -- TODO: Helper function 'unlock soul_shard'
+    -- TODO: Same for lock?
     if item_id == core.SOUL_SHARD_ID then
       last_shard_unlock_time = GetTime()
 
@@ -670,10 +694,11 @@ bag_slot_unlock_frame:SetScript("OnEvent",
       -- remove stale data
       local removed_locked_shard = table.remove(locked_shards, remove_index)
       remove_old_shard_data(removed_locked_shard)
-      shard_mapping[bag][slot] = removed_locked_shard.data
+      -- XXX shard_mapping[bag][slot] = removed_locked_shard.data
+      set_shard(bag, slot, removed_locked_shard.data)
 
       -- TODO: REMOVE ME!!!
-      print("Added shard --- " .. shard_mapping[bag][slot].name .. " --- to map!")
+      print("Added shard --- " .. get_shard(bag,slot).name .. " --- to map!")
 
     -- mark stone 'unlocked'
     elseif core.STONE_IID_TO_NAME[item_id] ~= nil then
@@ -732,12 +757,14 @@ cast_success_frame:SetScript("OnEvent",
     local consumed_stone_iid = is_consume_stone_spell(spell_id)
 
     -- conjure stone 
-    if shard_consuming_spell(spell_id, core.CREATE_STONE_SID) and not stone_created then
+    if core.table_contains(core.CREATE_STONE_SID, spell_id) and not stone_created then
       local shard_data, next_shard_location = get_next_shard_data()
-      shard_mapping[next_shard_location.bag][next_shard_location.slot] = nil
+      -- XXX shard_mapping[next_shard_location.bag][next_shard_location.slot] = nil
+      set_shard(next_shard_location.bag, next_shard_location.slot, nil)
       stone_iid = get_stone_item_id(spell_id, spell_name)
       stone_name = core.STONE_IID_TO_NAME[stone_iid]
-      stone_mapping[stone_iid] = shard_data
+      -- XXX stone_mapping[stone_iid] = shard_data
+      set_stone(stone_iid, shard_data)
 
       reset_consumed_locked_shard_data(next_shard_location)
 
@@ -746,18 +773,21 @@ cast_success_frame:SetScript("OnEvent",
       print("Created " .. stone_name .. " with the soul of <" .. shard_data.name .. ">")
 
     -- summon pet 
-    elseif shard_consuming_spell(spell_id, core.SUMMON_PET_SID) and not pet_summoned then
+    elseif core.table_contains(core.SUMMON_PET_SID, spell_id) and not pet_summoned then
       local shard_data, next_shard_location = get_next_shard_data()
-      shard_mapping[next_shard_location.bag][next_shard_location.slot] = nil
+      -- XXX shard_mapping[next_shard_location.bag][next_shard_location.slot] = nil
+      set_shard(next_shard_location.bag, next_shard_location.slot, nil)
 
       pet_summoned = true
       reset_consumed_locked_shard_data(next_shard_location)
       print("Cast " .. spell_name .. " with the soul of <" .. shard_data.name .. ">")
 
     -- consume HS/SS 
-    elseif consumed_stone_iid ~= nil and stone_mapping[consumed_stone_iid] ~= nil then
-      local stone_data = stone_mapping[consumed_stone_iid]
-      stone_mapping[consumed_stone_iid] = nil
+    elseif consumed_stone_iid ~= nil and core.table_contains(stone_mapping, consumed_stone_iid) then
+      -- local stone_data = stone_mapping[consumed_stone_iid]
+      local stone_data = get_stone(consumed_stone_iid)
+      -- XXX stone_mapping[consumed_stone_iid] = nil
+      set_stone(consumed_stone_iid, nil)
 
       print("Consumed the soul of <" .. stone_data.name .. ">")
 
@@ -765,7 +795,8 @@ cast_success_frame:SetScript("OnEvent",
       summon_details.location = find_next_shard_location()
 
       -- TODO: REMOVE ME ---------------
-      local summ_name = shard_mapping[summon_details.location.bag][summon_details.location.slot] 
+      -- XXX local summ_name = shard_mapping[summon_details.location.bag][summon_details.location.slot] 
+      local summ_name = get_shard(summon_details.location.bag, summon_details.location.slot)
       print("SPELLCAST_SUCCESS: SUMMON PREDICTING USE OF SOUL: " .. summ_name.name)
       -- TODO: REMOVE ME ---------------
     end
@@ -781,7 +812,8 @@ cast_sent_frame:SetScript("OnEvent",
     local ss_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
 
     if ss_iid ~= nil then 
-      local stone_data = stone_mapping[ss_iid]
+      -- local stone_data = stone_mapping[ss_iid]
+      local stone_data = get_stone(ss_iid)
       local mssg = string.format(core.SS_MESSAGE, target, stone_data.name)
       message_active_party(mssg)
 
@@ -809,9 +841,8 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: Update announced messages, if alliance add information... etc..
 -- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
 -- TODO: ADD 20 man raid boss ID's to core
--- TODO: ADD shards to end of bag option
 --
--- TODO: Enslave demon; make sure all shard using spells accounted for; be sure to test them
+-- TODO: Soul fire; Enslave demon; make sure all shard using spells accounted for; be sure to test them
 -- TODO: When trading HS -- whisper player the name of the soul!
 -- TODO: Custom message can be written by user through console
 --
@@ -824,7 +855,7 @@ delete_item_frame:SetScript("OnEvent",
 --  3. Reloading during a fight causes soul to be lost if drained after reboot but during fight
 
 -- TODO: TESTING - - - - - - - - - - - - - - - -
--- ---> TEST CREATING EVERY STONE / CASTING EVERY PET
+-- XXX TEST CREATING EVERY STONE / CASTING EVERY PET
 -- ---> Use locked shard for all different consuming spells. Also try locking shard that WONT be used when casting shard 
 --          consuming spells
 -- ---> DELETE SHARD > then lock/unlock a different shard; will break after first attempt
@@ -842,9 +873,6 @@ delete_item_frame:SetScript("OnEvent",
 --        >> QUESTION: Does it use the shard when SPELLCAST_SUCCESS || what if after success I move shards around? Which is used!
 --
 --
--- TODO: REFACTOR
--- ---> Create getter functions for getting map values.. e.g. x = stonemapping[item_id]  should be x = get_stone(item_id); etc..
--- ---> Refactor to no longer use spell_name is SPELLCAST_SUCCEED & get_stone_id.. use ID's instead.. would require refactoring core
 
 
 

@@ -31,13 +31,6 @@ core.SUMMON_PET_SID = {
   [691] = "Summon Felhunter"
 }
 
-core.MISC_SPELL_NAMES = {
-  SUMMON = "Ritual of Summoning",
-  -- TODO: 
-  ----> Enslave demon (add/test)
-  ----> Anything else? 
-}
-
 -- Misc
 core.PARTY_KILL  = "PARTY_KILL"
 core.UNIT_DIED  = "UNIT_DIED"
@@ -91,13 +84,7 @@ local stone_iid = {
   M_FIRESTONE = 13701
 }
 
-local stone_sid = {
-
-}
-
-
 -- item_id of all stones
--- TODO: What do I use this for? -- can make getter for this
 core.STONE_IID_TO_NAME = {
   [stone_iid.M_HS_1] = 'Minor Healthstone',
   [stone_iid.M_HS_2] = 'Minor Healthstone',
@@ -385,6 +372,15 @@ local function deep_copy(obj)
         return res
 end
 core.deep_copy = deep_copy
+
+
+local function table_contains(tab, value)
+  if tab[value] ~= nil then
+    return true
+  end
+  return false
+end
+core.table_contains = table_contains
 
 
 --[[******* DEBUG TOOLS ********]]--
