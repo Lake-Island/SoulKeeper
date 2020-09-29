@@ -63,6 +63,22 @@ drain_soul_data = {
 
 last_shard_unlock_time = 0
 
+-- TODO: Dont like how these fields are just copy pasted
+-- TODO: Also dont like how killed_target_data is a global function -- can I change this?
+local function reset_killed_target_data()
+  killed_target = {
+    id = -1,
+    name = nil,
+    race = nil,
+    class = nil,
+    location = nil,
+    is_player = false,
+    is_boss = false,
+    level = nil,
+    faction_color = nil
+  }
+end
+
 local function get_shard_mapping() 
   return shard_mapping
 end
@@ -370,6 +386,7 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
 
   -- save info of dead target
   -- TODO: HELPER FUNCTION
+  -- TODO: Should I map killed target guid to killed_target data? Think about this; could it work; necessary?
   if subevent == event_to_execute then 
     killed_target.id = GetServerTime()
     killed_target.name = dest_name 
@@ -516,10 +533,12 @@ local function bag_update_shard_handler(curr_time)
     if shard_added or drain_soul_batched(curr_time) then
       shard_added = false
       shard_mapping[bag][slot] = core.deep_copy(killed_target)
+      reset_killed_target_data()
     elseif curr_time ~= last_shard_unlock_time then -- shard added for odd behavior (e.g. pet out and taking flight path)
       local killed_targ = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
       killed_targ.id = GetServerTime()
       shard_mapping[bag][slot] = killed_targ
+      reset_killed_target_data()
     end
   end
 
@@ -797,11 +816,12 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: Custom message can be written by user through console
 --
 -- TODO: BUG ----------------------------------------------
---  1. Start creating stone.. unlock shard that will be used.. the next one gets used NOT the unlocked one (due to me setting to nil on unlock)
---  2. Killed alliance rogue.. saved shard.. now every shard I get has the enemy name but thinks its that level 60 alliance rogue just 
+--  XXX. Start creating stone.. unlock shard that will be used.. the next one gets used NOT the unlocked one (due to me setting to nil on unlock)
+--  XXX. Killed alliance rogue.. saved shard.. now every shard I get has the enemy name but thinks its that level 60 alliance rogue just 
 --      a different name
 --      >> Weird issue with levels and tooltip thinking non-alliacne is alliance
 --      >> Axe thrower in ZG was labeled as a raid boss..
+--  3. Reloading during a fight causes soul to be lost if drained after reboot but during fight
 
 -- TODO: TESTING - - - - - - - - - - - - - - - -
 -- ---> TEST CREATING EVERY STONE / CASTING EVERY PET
