@@ -397,6 +397,13 @@ end
 core.is_player_in_raid = is_player_in_raid
 
 
+local function is_target_player(tar_guid)
+  if tar_guid == nil then return false end
+  return string.find(tar_guid, "Player") ~= nil
+end
+core.is_target_player = is_target_player
+
+
 --[[******* DEBUG TOOLS ********]]--
 local function print_table(my_table)
   for key, val in pairs(my_table) do

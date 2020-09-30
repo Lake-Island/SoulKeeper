@@ -1,11 +1,44 @@
 local _, core = ...
 
-drain_soul_end_t = nil
-
+shard_mapping = { {}, {}, {}, {}, {} }
+stone_mapping = {}
+logout_time = nil
 enable_chat = false
 
--- data associated with soul shard
-killed_target = {
+local current_target_guid = nil
+local current_target_name = nil
+local last_bag_update_time = nil
+local shard_added = false
+local pet_summoned = false
+local stone_deleted = false
+local shard_deleted = false
+local stone_created = false
+local player_in_raid_instance = false
+local locked_shards = {}
+local locked_stone_iid = {}
+local player_target_map = {}
+local next_open_shard_slot = {}
+local last_shard_unlock_time = 0
+
+local drain_soul_end_t = nil
+local drain_soul_data = { 
+  casting = false,
+  target_guid = ""
+}
+
+local summon_details = { 
+  end_time = nil, 
+  location = nil 
+}
+
+local shadowburn_data = {
+  applied = false,
+  application_time = nil,
+  end_time = nil,
+  target_guid = ""
+}
+
+local killed_target = {
   id = -1,
   name = nil,
   race = nil,
@@ -16,50 +49,6 @@ killed_target = {
   level = nil,
   faction_color = nil
 }
-
-player_target_map = {}
-current_target_guid = nil
-current_target_name = nil
-
-last_bag_update_time = nil
-player_in_raid_instance = false
-
-logout_time = nil
-summon_details = {
-  end_time = nil,
-  location = nil
-}
-
--- Mapping of data of saved souls to bag indices
-shard_mapping = { {}, {}, {}, {}, {} }
-
--- map conjured stone item_ID to kill data 
-stone_mapping = {}
-
-next_open_shard_slot = {}
-
-locked_shards = {}
-shard_added = false
-shard_deleted = false
-stone_created = false
-pet_summoned = false
-
-locked_stone_iid = {}
-stone_deleted = false
-
-shadowburn_data = {
-  applied = false,
-  application_time = nil,
-  end_time = nil,
-  target_guid = ""
-}
-
-drain_soul_data = { 
-  casting = false,
-  target_guid = ""
-}
-
-last_shard_unlock_time = 0
 
 
 local function get_shard(bag, slot)
@@ -81,10 +70,6 @@ local function set_stone(stone_iid, val)
   stone_mapping[stone_iid] = val
 end
 
-
--- TODO: Dont like how these fields are just copy pasted
--- TODO: Also dont like how killed_target is a global variable -- can I change this?
--- TODO: Kill target but dont drain soul... does kill_target data reset? 
 local function reset_killed_target_data()
   killed_target = {
     id = -1,
@@ -263,12 +248,6 @@ local function get_next_shard_data()
 end
 
 
-local function is_target_player(tar_guid)
-  if tar_guid == nil then return false end
-  return string.find(tar_guid, "Player") ~= nil
-end
-
-
 --[[
   Set next_open_shard_slot variable to contain the bag_number and index of the 
   next open bag slot. Only soulbags and regular bags considered, soul bags
@@ -307,11 +286,9 @@ end
 
 -- get item id of stone associated with conjure spell
 local function get_stone_item_id(spell_id, spell_name)
-  -- hs; query with pts in imp. hs
   if core.is_spell_create_hs(spell_id) then
     imp_hs_pts = get_total_pts_imp_hs() 
     return core.SPELL_NAME_TO_ITEM_ID[core.HS][spell_name][imp_hs_pts]
-  -- non-hs
   else
     return core.SPELL_NAME_TO_ITEM_ID[core.NON_HS][spell_name]
   end
@@ -347,25 +324,12 @@ local function reset_expired_stone_mapping()
     current_time = GetServerTime()
     stone_mapping_expr_time = logout_time + core.FIFTEEN_MINUTES
     if current_time > stone_mapping_expr_time then
-      print("EXPIRED: Clearing stone_mapping data...")
+      print("EXPIRED: Clearing stone_mapping data...") -- TODO: REMOVE ME 
       stone_mapping = {}
     end
     logout_time = nil
   end
 end
-
-
-local current_target_frame = CreateFrame("Frame")
-current_target_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
-current_target_frame:SetScript("OnEvent",
-  function(self, event)
-    current_target_guid = UnitGUID("target")
-    current_target_name = UnitName("target")
-
-    if is_target_player(current_target_guid) then
-      player_target_map[current_target_guid] = UnitLevel("target")
-    end
-  end)
 
 
 --[[
@@ -384,12 +348,11 @@ end
 
 local function set_killed_target(dest_name, dest_guid)
   reset_killed_target_data()
-
   killed_target.id = GetServerTime()
   killed_target.name = dest_name 
   killed_target.location = core.get_player_zone()
 
-  if is_target_player(dest_guid) then 
+  if core.is_target_player(dest_guid) then 
     local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
     killed_target.race = race_name
     killed_target.class = class_name
@@ -422,8 +385,8 @@ local function shadowburn_aura_handler(subevent, dest_guid, curr_time)
 end
 
 
+-- When shard consuming spell is active on killed target; reset corresponding data
 local function add_next_shard()
-  -- shard consuming spell active on killed target; reset corresponding data
   if shadowburn_data.applied or drain_soul_data.casting then
     if shadowburn_data.target_guid == dest_guid then
       reset_shadowburn_data()
@@ -437,6 +400,126 @@ local function add_next_shard()
     end
   end
 end
+
+local function drain_soul_batched(curr_time) 
+  if drain_soul_end_t == nil then return false end
+  local difference = curr_time - drain_soul_end_t
+  drain_soul_end_t = nil
+
+  if difference <= core.DRAIN_SOUL_DIFF then
+    return true
+  end
+  return false
+end
+
+
+--[[
+  Remove stale data from shards old (locking) position.
+]]--
+local function remove_old_shard_data(shard)
+  local old_bag  = shard.bag
+  local old_slot = shard.slot
+  local old_id = get_shard(old_bag, old_slot).id
+  if old_id == shard.data.id then
+    set_shard(old_bag, old_slot, nil)
+  end
+end
+
+
+--[[
+    Clears the associated consumed shard data on successful summon.
+--]]
+local function successful_summon_handler(curr_time)
+  if summon_details.end_time ~= nil then
+
+    local difference = curr_time - summon_details.end_time
+    if difference <= core.SUCCESSFUL_SUMMON_DIFF then 
+
+      -- TODO: REMOVE ME -----------------------------------
+      local curr_shard_data = get_shard(summon_details.location.bag, summon_details.location.slot)
+      print("Successful summon --- Removing soul: " .. curr_shard_data.name)
+      -- TODO: REMOVE ME -----------------------------------
+
+      reset_consumed_locked_shard_data(summon_details.location)
+      set_shard(summon_details.location.bag, summon_details.location.slot, nil)
+    end
+
+    reset_summon_details()
+  end
+end
+
+
+--[[
+  Return bag, slot & item_id of last open slot.
+--]]
+local function get_last_open_slot_data()
+  local bag = next_open_shard_slot['bag_number']
+  local slot = next_open_shard_slot['open_index']
+  if bag ~= nil and slot ~= nil then 
+    local item_id = GetContainerItemID(bag, slot)
+    return bag+1, slot, item_id    -- bag+1 for indexing at 1, not 0
+  end
+
+  return nil
+end
+
+
+--[[
+  During BAG_UPDATE, check if a shard was added to the last open shard space. 
+  Set corresponding mapping/data if true.
+--]]
+local function bag_update_shard_handler(curr_time)
+  local bag, slot, item_id = get_last_open_slot_data()
+  if item_id == core.SOUL_SHARD_ID then
+    if shard_added or drain_soul_batched(curr_time) then
+      shard_added = false
+      set_shard(bag, slot, core.deep_copy(killed_target))
+    elseif curr_time ~= last_shard_unlock_time then -- shard added for odd behavior (e.g. pet out and taking flight path)
+      local killed_target_copy = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
+      killed_target_copy.id = GetServerTime()
+      set_shard(bag, slot, killed_target_copy)
+    end
+  end
+
+  -- unless deleted, shards never 'lock' during bag_update
+  if shard_deleted then 
+    local del_shard = locked_shards[1]
+    set_shard(del_shard.bag, del_shard.slot, nil)
+    shard_deleted = false
+    locked_shards =  {}
+  end
+end
+
+
+local function bag_update_stone_handler()
+  if stone_created then 
+    stone_created = false
+  end
+
+  if stone_deleted then
+    set_stone(locked_stone_iid, nil)
+    stone_deleted = false
+    locked_stone_iid = {}
+  end
+end
+
+
+----------------------- EVENTS ----------------------------
+
+
+local current_target_frame = CreateFrame("Frame")
+current_target_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
+current_target_frame:SetScript("OnEvent",
+  function(self, event)
+    current_target_guid = UnitGUID("target")
+    current_target_name = UnitName("target")
+
+    if core.is_target_player(current_target_guid) then
+      player_target_map[current_target_guid] = UnitLevel("target")
+    end
+  end)
+
+
 
 --[[ 
      From the Combat Log save the targets details, time, and location of kill.
@@ -489,105 +572,6 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   end
 end)
 
-
---[[ TODO: MOVE ME!
-
-]]--
-local function drain_soul_batched(curr_time) 
-  if drain_soul_end_t == nil then return false end
-  difference = curr_time - drain_soul_end_t
-  drain_soul_end_t = nil
-
-  if difference <= core.DRAIN_SOUL_DIFF then
-    return true
-  end
-
-  return false
-end
-
-
---[[
-    Clears the associated consumed shard data on successful summon.
---]]
-local function successful_summon_handler(curr_time)
-  if summon_details.end_time ~= nil then
-    local difference = curr_time - summon_details.end_time
-
-    -- TODO: REMOVE ME -----------------------------------
-    print("BAG_UPDATE_TIME: " .. curr_time)
-    print("SUMMON_END_TIME: " .. summon_details.end_time)
-    print("DIFFERENCE: " .. difference)
-    -- TODO: REMOVE ME -----------------------------------
-
-    if difference <= core.SUCCESSFUL_SUMMON_DIFF then 
-
-      -- TODO: REMOVE ME -----------------------------------
-      local curr_shard_data = get_shard(summon_details.location.bag, summon_details.location.slot)
-      print("Successful summon --- Removing soul: " .. curr_shard_data.name)
-      -- TODO: REMOVE ME -----------------------------------
-
-      reset_consumed_locked_shard_data(summon_details.location)
-      set_shard(summon_details.location.bag, summon_details.location.slot, nil)
-    end
-
-    reset_summon_details()
-  end
-end
-
---[[
-  Return bag, slot & item_id of last open slot.
---]]
-local function get_last_open_slot_data()
-  local bag = next_open_shard_slot['bag_number']
-  local slot = next_open_shard_slot['open_index']
-  if bag ~= nil and slot ~= nil then 
-    local item_id = GetContainerItemID(bag, slot)
-    return bag+1, slot, item_id    -- bag+1 for indexing at 1, not 0
-  end
-
-  return nil
-end
-
-
---[[
-  During BAG_UPDATE, check if a shard was added to the last open shard space. 
-  Set corresponding mapping/data if true.
---]]
-local function bag_update_shard_handler(curr_time)
-  local bag, slot, item_id = get_last_open_slot_data()
-  if item_id == core.SOUL_SHARD_ID then
-    if shard_added or drain_soul_batched(curr_time) then
-      shard_added = false
-      set_shard(bag, slot, core.deep_copy(killed_target))
-    elseif curr_time ~= last_shard_unlock_time then -- shard added for odd behavior (e.g. pet out and taking flight path)
-      -- TODO: Create a function that will automatically handle killed_target allocation?
-      local killed_target_copy = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
-      killed_target_copy.id = GetServerTime()
-      set_shard(bag, slot, killed_target_copy)
-    end
-  end
-
-  -- unless deleted, shards never 'lock' during bag_update
-  if shard_deleted then 
-    local del_shard = locked_shards[1]
-    set_shard(del_shard.bag, del_shard.slot, nil)
-    shard_deleted = false
-    locked_shards =  {}
-  end
-end
-
-
-local function bag_update_stone_handler()
-  if stone_created then 
-    stone_created = false
-  end
-
-  if stone_deleted then
-    set_stone(locked_stone_iid, nil)
-    stone_deleted = false
-    locked_stone_iid = {}
-  end
-end
 
 
 --[[
@@ -645,18 +629,6 @@ bag_slot_lock_frame:SetScript("OnEvent",
   end)
 
 
---[[
-  Remove stale data from shards old (locking) position.
-]]--
-local function remove_old_shard_data(shard)
-  local old_bag  = shard.bag
-  local old_slot = shard.slot
-  local old_id = get_shard(old_bag, old_slot).id
-  if old_id == shard.data.id then
-    set_shard(old_bag, old_slot, nil)
-  end
-end
-
 
 --[[
   When a soul shard is unlocked (put into the inventory from locked state),
@@ -709,8 +681,8 @@ reload_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 reload_frame:SetScript("OnEvent", 
   function(self,event,...)
     -- TODO: Change me back
-    --set_default_shard_data()
-    set_shard_data()
+    set_default_shard_data()
+    --set_shard_data()
     reset_expired_stone_mapping()
     player_in_raid_instance = core.is_player_in_raid()
     player_target_map = {}
@@ -810,7 +782,7 @@ cast_sent_frame:SetScript("OnEvent",
       local mssg = string.format(core.SS_MESSAGE, target, stone_data.name)
       message_active_party(mssg)
 
-    elseif spell_id == core.RITUAL_OF_SUMM_SID and is_target_player(current_target_guid) then
+    elseif spell_id == core.RITUAL_OF_SUMM_SID and core.is_target_player(current_target_guid) then
       local shard_data = get_next_shard_data()
       local mssg = string.format(core.SUMMON_MESSAGE, current_target_name, shard_data.name)
       message_active_party(mssg)
@@ -834,13 +806,16 @@ delete_item_frame:SetScript("OnEvent",
 -- TODO: Cleanup code
 -->>> SUCCEEDED has a lot of repeated code 
 -- --------------------------TODO-------------------
--- TODO: Go through all TODO's in code
 -- TODO: Update announced messages, if alliance add information... etc..
--- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
 -- TODO: ADD 20 man raid boss ID's to core
+-- TODO: Fun little notes
+-- TODO: UX: Give the user soem options through the console
+--         ----> Enable/disable certain features
+--         ----> Custom message can be written by user through console
 --
+-- ---------------------------- FUTURE ----------------------------------------------
+-- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
 -- TODO: When trading HS -- whisper player the name of the soul!
--- TODO: Custom message can be written by user through console
 --
 -- TODO: BUG ----------------------------------------------
 --  1. Reloading during a fight causes soul to be lost if drained after reboot but during fight
@@ -864,49 +839,3 @@ delete_item_frame:SetScript("OnEvent",
 -- XXX Use locked shard for all different consuming spells. Also try locking shard that WONT be used when casting shard 
 --          consuming spells
 -- XXX DELETE SHARD > then lock/unlock a different shard; will break after first attempt
-
-
-
-
--- TODO: FOR TESTING -- REMOVE ME!!!!
---[[
-t1 = nil
-t2 = nil
-local test_frame = CreateFrame("Frame")
-test_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
-test_frame:SetScript("OnEvent",
-  function(self, event)
-    print("ServerTime: " .. GetServerTime())
-    print("Uptime: " .. GetTime())
-    if t1 == nil then 
-      t1 = GetTime()
-    elseif t2 == nil then
-      t2 = GetTime()
-      print("T1: " .. t1)
-      print("T2: " .. t2)
-      difference = t2-t1
-      print("DIFFERENCE: " .. difference)
-      if difference < 1 then
-        print("DIFFERENCE LESS THAN 1!")
-      end
-      t1 = nil
-      t2 = nil
-    end
-  end)
-
-local cast_start_frame = CreateFrame("Frame")
-cast_start_frame:RegisterEvent("UNIT_SPELLCAST_START")
-cast_start_frame:SetScript("OnEvent", 
-  function(self,event,...)
-    local unit_target, cast_guid, spell_id = ...
-    
-    mssg = "%s, the soul of <%s> is yours!"
-    print(string.format(mssg, "Krel", "Monkey"))
-    print("MY_NAME: " .. UnitName("player"))
-    print("TARGET_NAME: " .. UnitName("target"))
-    
-  end)
-
-]]--
-
--- END
