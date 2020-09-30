@@ -183,7 +183,7 @@ end
 -- TODO: REMOVE ME ------------------------------------------------------
 
 
---[[ Return the bag number and slot of next shard that will be consumed --]]
+--[[ Return the bag and slot of next shard that will be consumed --]]
 local function find_next_shard_location()
   local next_shard = { bag = core.SLOT_NULL, slot = core.SLOT_NULL }
   for bag_num, _ in ipairs(shard_mapping) do 
@@ -212,24 +212,11 @@ local function get_next_shard_data()
 end
 
 
---[[ Remove shard from map, return its (data,location) ]]--
-local function remove_next_shard()
-  local shard_data, next_shard_location = get_next_shard_data()
-  set_shard(next_shard_location.bag, next_shard_location.slot, nil)
-  return shard_data, next_shard_location
-end
-
-
---[[
-  Set next_open_shard_slot variable to contain the bag_number and index of the 
-  next open bag slot. Only soulbags and regular bags considered, soul bags
-  get priority order.
---]]
+--[[ Set next open space soulshard will enter bags; soulbag priority. --]]
 local function update_next_open_bag_slot()
     local open_soul_bag = {}
     local open_normal_bag = {}
     for bag_num = 0, core.MAX_BAG_INDEX, 1 do
-      -- get number of free slots in bag and its type
       local num_free_slots, bag_type = GetContainerNumFreeSlots(bag_num);
       if num_free_slots > 0 then
         local free_slots = GetContainerFreeSlots(bag_num)
@@ -245,7 +232,6 @@ local function update_next_open_bag_slot()
       end
     end
 
-    -- set next_open_shard_slot to corresopnding bag/index
     if next(open_soul_bag) ~= nil then 
       next_open_shard_slot = open_soul_bag
     elseif next(open_normal_bag) ~= nil then
@@ -276,7 +262,7 @@ local function is_consume_stone_spell(spell_id)
 end
 
 
---[[ Display message to raid, party if no raid, nothing otherwise. ]]--
+--[[ Display message to group (raid > party) ]]--
 local function message_active_party(mssg)
   if enable_chat then
     if IsInRaid() then
@@ -290,7 +276,7 @@ local function message_active_party(mssg)
 end
 
 
---[[ Reset stone data if logged out more than 15min. ]]--
+--[[ Reset stone data if logged out more than 15min ]]--
 local function reset_expired_stone_mapping()
   if logout_time ~= nil then
     current_time = GetServerTime()
@@ -304,9 +290,7 @@ local function reset_expired_stone_mapping()
 end
 
 
---[[
-  Reset locked shard data when the locked shard was consumed.
---]]
+--[[ Reset locked shard data when the locked shard was consumed --]]
 local function reset_consumed_locked_shard_data(shard_location)
   local locked_shard = locked_shards[1]
   if locked_shard ~= nil then 
@@ -351,13 +335,14 @@ local function shadowburn_aura_handler(subevent, dest_guid, curr_time)
   if subevent == core.AURA_APPLIED then
     set_shadowburn_data(dest_guid, GetTime(curr_time))
   elseif subevent == core.AURA_REMOVED and 
-         shadowburn_data.end_time ~= nil and curr_time >= shadowburn_data.end_time then
+         shadowburn_data.end_time ~= nil and 
+         curr_time >= shadowburn_data.end_time then
     reset_shadowburn_data()
   end
 end
 
 
--- When shard consuming spell is active on killed target; reset corresponding data
+--[[ Set shard_added when a spell extracts a shard ]]--
 local function add_next_shard()
   if shadowburn_data.applied or drain_soul_data.casting then
     if shadowburn_data.target_guid == dest_guid then
@@ -386,9 +371,7 @@ local function drain_soul_batched(curr_time)
 end
 
 
---[[
-  Remove stale data from shards old (locking) position.
-]]--
+--[[ Remove stale data from shards old (locking) position ]]--
 local function remove_old_shard_data(shard)
   local old_bag  = shard.bag
   local old_slot = shard.slot
@@ -399,9 +382,7 @@ local function remove_old_shard_data(shard)
 end
 
 
---[[
-    Clears the associated consumed shard data on successful summon.
---]]
+--[[ Clear the associated consumed shard data on successful summon --]]
 local function successful_summon_handler(curr_time)
   if summon_details.end_time ~= nil then
 
@@ -422,9 +403,7 @@ local function successful_summon_handler(curr_time)
 end
 
 
---[[
-  Return bag, slot & item_id of last open slot.
---]]
+--[[ Return bag, slot & item_id of last open slot. --]]
 local function get_last_open_slot_data()
   local bag = next_open_shard_slot['bag_number']
   local slot = next_open_shard_slot['open_index']
@@ -437,17 +416,16 @@ local function get_last_open_slot_data()
 end
 
 
---[[
-  During BAG_UPDATE, check if a shard was added to the last open shard space. 
-  Set corresponding mapping/data if true.
---]]
+--[[ Map/unmap shard being added/deleted from bag ]]--
 local function bag_update_shard_handler(curr_time)
   local bag, slot, item_id = get_last_open_slot_data()
   if item_id == core.SOUL_SHARD_ID then
     if shard_added or drain_soul_batched(curr_time) then
       shard_added = false
       set_shard(bag, slot, core.deep_copy(killed_target))
-    elseif curr_time ~= last_shard_unlock_time then -- shard added for odd behavior (e.g. pet out and taking flight path)
+      
+    -- shard added for odd behavior (e.g. pet out and taking flight path)
+    elseif curr_time ~= last_shard_unlock_time then 
       local killed_target_copy = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
       killed_target_copy.id = GetServerTime()
       set_shard(bag, slot, killed_target_copy)
@@ -548,11 +526,6 @@ current_target_frame:SetScript("OnEvent",
   end)
 
 
-
---[[ 
-     From the Combat Log save the targets details, time, and location of kill.
-     Track shadowburn debuff data.
---]]
 local combat_log_frame = CreateFrame("Frame")
 combat_log_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 combat_log_frame:SetScript("OnEvent", function(self,event)
@@ -564,7 +537,6 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
     event_to_execute = core.UNIT_DIED
   end
 
-  -- save info of dead target
   if subevent == event_to_execute then 
     set_killed_target(dest_name, dest_guid)
     add_next_shard()
@@ -574,7 +546,6 @@ combat_log_frame:SetScript("OnEvent", function(self,event)
 end)
 
 
---[[ Record that drain soul started channeling. --]]
 local channel_start_frame = CreateFrame("Frame")
 channel_start_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 channel_start_frame:SetScript("OnEvent", function(self,event, ...)
@@ -586,7 +557,6 @@ channel_start_frame:SetScript("OnEvent", function(self,event, ...)
 end)
 
 
---[[ Record that drain soul stopped channeling. ]]--
 local channel_end_frame = CreateFrame("Frame")
 channel_end_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 channel_end_frame:SetScript("OnEvent", function(self,event, ...)
@@ -601,18 +571,10 @@ channel_end_frame:SetScript("OnEvent", function(self,event, ...)
 end)
 
 
-
---[[
-  On BAG_UPDATE (inventory change), check if item was a newly added soul shard. 
-  Save mapping of new shard to bag index. Update next open bag slot.
-  Will not map if shard wasn't actually added (preventing errors with no xp/honor target).
-  >> NOTE: Bag numbers index from [0-4] but the shard_mapping table is from [1-5]
---]]
 local item_frame = CreateFrame("Frame")
 item_frame:RegisterEvent("BAG_UPDATE")
 item_frame:SetScript("OnEvent",
   function(self, event, ...)
-    print("BAG_UPDATE")
     local curr_time = GetTime()
     if last_bag_update_time == curr_time then return end
     last_bag_update_time = curr_time
@@ -625,17 +587,10 @@ item_frame:SetScript("OnEvent",
       duplicate_spellcast_success = false
     end
 
-    -- update next open slot
     update_next_open_bag_slot()
   end)
 
 
---[[
-  When a soul shard is locked (selected from inventory), save its data
-  in the locked_shards table with its bag/bag_slot numbers. 
-  Remove the shards mapping from the shard_mapping table until unlocked.
-  ( see 'ITEM_UNLOCKED' frame )
---]]
 local bag_slot_lock_frame = CreateFrame("Frame")
 bag_slot_lock_frame:RegisterEvent("ITEM_LOCKED")
 bag_slot_lock_frame:SetScript("OnEvent",
@@ -650,12 +605,6 @@ bag_slot_lock_frame:SetScript("OnEvent",
   end)
 
 
---[[
-  When a soul shard is unlocked (put into the inventory from locked state),
-  update mapping with the shards data. 
-  Checks table of locked_shards adding the shard from a different bag slot
-  if there are more than one shards in the list (e.g. a swap is occuring).
---]]
 local bag_slot_unlock_frame = CreateFrame("Frame")
 bag_slot_unlock_frame:RegisterEvent("ITEM_UNLOCKED")
 bag_slot_unlock_frame:SetScript("OnEvent",
@@ -665,13 +614,10 @@ bag_slot_unlock_frame:SetScript("OnEvent",
     bag = bag + 1
     if item_id == core.SOUL_SHARD_ID then
       unlock_shard(bag, slot)
-
-    -- mark stone 'unlocked'
     elseif core.table_contains(core.STONE_IID_TO_NAME, item_id) then
       locked_stone_iid = {}
     end
   end)
-
 
 
 local reload_frame = CreateFrame("Frame")
@@ -735,19 +681,17 @@ cast_success_frame:SetScript("OnEvent",
   end)
 
 
---[[ Message group who is getting the SS/summon being cast. ]]--
 local cast_sent_frame = CreateFrame("Frame")
 cast_sent_frame:RegisterEvent("UNIT_SPELLCAST_SENT")
 cast_sent_frame:SetScript("OnEvent", 
   function(self,event,...)
     local _, target, _, spell_id = ...
-    local ss_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
+    local soulstone_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
 
-    if ss_iid ~= nil then 
-      local stone_data = get_stone(ss_iid)
+    if soulstone_iid ~= nil then 
+      local stone_data = get_stone(soulstone_iid)
       local mssg = string.format(core.SS_MESSAGE, target, stone_data.name)
       message_active_party(mssg)
-
     elseif spell_id == core.RITUAL_OF_SUMM_SID and core.is_target_player(current_target_guid) then
       local shard_data = get_next_shard_data()
       local mssg = string.format(core.SUMMON_MESSAGE, current_target_name, shard_data.name)
