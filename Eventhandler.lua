@@ -212,6 +212,14 @@ local function get_next_shard_data()
 end
 
 
+--[[ Remove shard from map, return its (data,location) ]]--
+local function remove_next_shard()
+  local shard_data, next_shard_location = get_next_shard_data()
+  set_shard(next_shard_location.bag, next_shard_location.slot, nil)
+  return shard_data, next_shard_location
+end
+
+
 --[[
   Set next_open_shard_slot variable to contain the bag_number and index of the 
   next open bag slot. Only soulbags and regular bags considered, soul bags
@@ -496,6 +504,34 @@ local function lock_shard(bag, slot)
 end
 
 
+--[[ True if spell_id is shard consuming -- create stone; summon pet; soul fire; enslave ]]--
+local function shard_consuming_spell(spell_id, spell_name) 
+  local shard_data, next_shard_location = get_next_shard_data()
+
+  if core.table_contains(core.CREATE_STONE_SID, spell_id) then
+    stone_iid = get_stone_item_id(spell_id, spell_name)
+    set_stone(stone_iid, shard_data)
+    stone_name = core.STONE_IID_TO_NAME[stone_iid]
+    print("Created " .. stone_name .. " with the soul of <" .. shard_data.name .. ">")
+
+  elseif core.table_contains(core.SUMMON_PET_SID, spell_id) then
+    print("Cast " .. spell_name .. " with the soul of <" .. shard_data.name .. ">")
+
+  elseif core.list_contains(core.SOUL_FIRE_SID, spell_id) then
+    print("SOUL_FIRE -- soul of " .. shard_data.name)
+
+  elseif core.list_contains(core.ENSLAVE_DEMON_SID, spell_id) then
+    print("ENSLAVE_DEMON -- soul of " .. shard_data.name)
+  else
+    return false
+  end
+
+  set_shard(next_shard_location.bag, next_shard_location.slot, nil)
+  reset_consumed_locked_shard_data(next_shard_location)
+  return true
+end
+
+
 ----------------------- EVENTS ----------------------------
 
 
@@ -663,12 +699,6 @@ logout_frame:SetScript("OnEvent",
   end)
 
 
---[[
-  Check if a shard consuming spell was cast successfully. Map corresponding shard 
-  data to newly conjured stone/pet. 
-  -- NOTE: Store stones in mapping by item_id, this way events ITEM_LOCK/UNLOCK can 
-            access the corresponding item mapping.
---]]
 local cast_success_frame = CreateFrame("Frame")
 cast_success_frame:RegisterEvent("UNIT_SPELLCAST_SUCCEEDED")
 cast_success_frame:SetScript("OnEvent", 
@@ -677,58 +707,28 @@ cast_success_frame:SetScript("OnEvent",
     local spell_name = GetSpellInfo(spell_id)
     local consumed_stone_iid = is_consume_stone_spell(spell_id)
 
-    -- TODO: Helper functions for each set? 
     if duplicate_spellcast_success then return end
 
-    -- conjure stone 
-    if core.table_contains(core.CREATE_STONE_SID, spell_id) then
-      local shard_data, next_shard_location = get_next_shard_data()
-      set_shard(next_shard_location.bag, next_shard_location.slot, nil)
-      stone_iid = get_stone_item_id(spell_id, spell_name)
-      stone_name = core.STONE_IID_TO_NAME[stone_iid]
-      set_stone(stone_iid, shard_data)
-      reset_consumed_locked_shard_data(next_shard_location)
+    if not shard_consuming_spell(spell_id, spell_name) then
+      -- consume HS/SS 
+      if consumed_stone_iid ~= nil and core.table_contains(stone_mapping, consumed_stone_iid) then
+        local stone_data = get_stone(consumed_stone_iid)
+        set_stone(consumed_stone_iid, nil)
 
-      print("Created " .. stone_name .. " with the soul of <" .. shard_data.name .. ">")
+        print("Consumed the soul of <" .. stone_data.name .. ">")
 
-    -- summon pet 
-    elseif core.table_contains(core.SUMMON_PET_SID, spell_id) then
-      local shard_data, next_shard_location = get_next_shard_data()
-      set_shard(next_shard_location.bag, next_shard_location.slot, nil)
-      reset_consumed_locked_shard_data(next_shard_location)
+      -- summon cast successfully; shard not yet consumed
+      elseif spell_id == core.RITUAL_OF_SUMM_SID then
+        summon_details.location = find_next_shard_location()
 
-      print("Cast " .. spell_name .. " with the soul of <" .. shard_data.name .. ">")
+        -- TODO: REMOVE ME ---------------
+        local summ_name = get_shard(summon_details.location.bag, summon_details.location.slot)
+        print("SPELLCAST_SUCCESS: SUMMON PREDICTING USE OF SOUL: " .. summ_name.name)
+        -- TODO: REMOVE ME ---------------
 
-    -- consume HS/SS 
-    elseif consumed_stone_iid ~= nil and core.table_contains(stone_mapping, consumed_stone_iid) then
-      local stone_data = get_stone(consumed_stone_iid)
-      set_stone(consumed_stone_iid, nil)
-
-      print("Consumed the soul of <" .. stone_data.name .. ">")
-
-    elseif spell_id == core.RITUAL_OF_SUMM_SID then
-      summon_details.location = find_next_shard_location()
-
-      -- TODO: REMOVE ME ---------------
-      local summ_name = get_shard(summon_details.location.bag, summon_details.location.slot)
-      print("SPELLCAST_SUCCESS: SUMMON PREDICTING USE OF SOUL: " .. summ_name.name)
-      -- TODO: REMOVE ME ---------------
-
-    -- TODO: ALOT OF SIMILAR CODE HERE.. enslave demon and soul_fire are exactly the same 
-    elseif core.list_contains(core.SOUL_FIRE_SID, spell_id) then
-      local shard_data, next_shard_location = get_next_shard_data()
-      set_shard(next_shard_location.bag, next_shard_location.slot, nil)
-
-      print("SOUL_FIRE -- soul of " .. shard_data.name)
-
-    -- TODO: TEST THIS!!!
-    elseif core.list_contains(core.ENSLAVE_DEMON_SID, spell_id) then
-      local shard_data, next_shard_location = get_next_shard_data()
-      set_shard(next_shard_location.bag, next_shard_location.slot, nil)
-
-      print("ENSLAVE_DEMON -- soul of " .. shard_data.name)
-    else 
-      return
+      else 
+        return
+      end
     end
 
     duplicate_spellcast_success = true
@@ -769,8 +769,6 @@ delete_item_frame:SetScript("OnEvent",
   
 
 ------------------ API --------------------
--- TODO: MAKE SURE ALL THESAE FUCNTIOSN ARE CALLED USDING 'core.'
-
 
 local function get_shard_mapping() 
   return shard_mapping
@@ -801,10 +799,8 @@ core.toggle_chat = toggle_chat
 
  
 
------------------- REFACTOR -------------------
--- TODO: Cleanup code
--->>> SUCCEEDED has a lot of repeated code 
 -- --------------------------TODO-------------------
+-- TODO: Any print statements I keep need to put those strings in core.. maybe make helper function that prints strings
 -- TODO: Update announced messages, if alliance add information... etc..
 -- TODO: ADD 20 man raid boss ID's to core
 -- TODO: Fun little notes
@@ -818,10 +814,10 @@ core.toggle_chat = toggle_chat
 --
 -- TODO: BUG ----------------------------------------------
 --  1. Summon (predict shard) move another to be used it bugs out
---  2. Running twice -- soulfire/enslave
 --  2. Reloading during a fight causes soul to be lost if drained after reboot but during fight
 
 -- TODO: TESTING - - - - - - - - - - - - - - - -
+-- ---> Enslave demon
 -- ---> Test summong/moving around shards/etc..
 --        >> Move shards WHILE summong.. i.e. after initial spellcast sent
 --        >> QUESTION: Does it use the shard when SPELLCAST_SUCCESS || what if after success I move shards around? Which is used!
