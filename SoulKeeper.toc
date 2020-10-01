@@ -6,6 +6,5 @@
 
 Core.lua
 Tooltip.lua
-UI.lua
 Eventhandler.lua
 Main.lua

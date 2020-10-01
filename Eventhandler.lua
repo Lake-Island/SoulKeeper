@@ -26,7 +26,7 @@ local drain_soul_data = {
 }
 
 local summon_details = { 
-  end_time = nil, 
+  end_time = nil,
   location = nil 
 }
 
@@ -351,7 +351,8 @@ local function add_next_shard()
     if drain_soul_data.target_guid == dest_guid then
       reset_drain_soul_data()
     end
-    -- shard added if space available in bag
+    -- space available?
+    -- TODO: Problem is adding a shard when target not tapped
     if next(next_open_shard_slot) ~= nil then 
       shard_added = true
     end
@@ -384,7 +385,8 @@ end
 
 --[[ Clear the associated consumed shard data on successful summon --]]
 local function successful_summon_handler(curr_time)
-  if summon_details.end_time ~= nil then
+  -- end_time set on successful summon, before this is called
+  if summon_details.location ~= nil and summon_details.end_time ~= nil then
 
     local difference = curr_time - summon_details.end_time
     if difference <= core.SUCCESSFUL_SUMMON_DIFF then 
@@ -453,9 +455,6 @@ end
 
 local function unlock_shard(bag, slot)
   last_shard_unlock_time = GetTime()
-  if summon_details.location ~= nil then 
-    summon_details.location = find_next_shard_location()
-  end
 
   -- swapping shards
   local remove_index = 1
@@ -470,6 +469,11 @@ local function unlock_shard(bag, slot)
   local removed_locked_shard = table.remove(locked_shards, remove_index)
   remove_old_shard_data(removed_locked_shard)
   set_shard(bag, slot, removed_locked_shard.data)
+
+  if summon_details.location ~= nil then 
+    summon_details.location = find_next_shard_location()
+  end
+
 end
 
 
@@ -744,11 +748,12 @@ core.toggle_chat = toggle_chat
  
 
 -- --------------------------TODO-------------------
+-- TODO: Refactor how events are called
 -- TODO: Any print statements I keep need to put those strings in core.. maybe make helper function that prints strings
 -- TODO: Update announced messages, if alliance add information... etc..
 -- TODO: ADD 20 man raid boss ID's to core
 -- TODO: Fun little notes
--- TODO: UX: Give the user soem options through the console
+-- TODO: UX: Give the user some options through the console
 --         ----> Enable/disable certain features
 --         ----> Custom message can be written by user through console
 --
@@ -758,19 +763,32 @@ core.toggle_chat = toggle_chat
 --
 -- TODO: BUG ----------------------------------------------
 --  1. Summon (predict shard) move another to be used it bugs out
---  2. Reloading during a fight causes soul to be lost if drained after reboot but during fight
+--    >> Put shard infront of one that sto be used..  e.g. after unlock.. updating position doesnt seem to work update  correctly see prints
+--  2. Kill no-xp/honor target... shard_added = true, then do a bag_update it'll think a shard was added
+--      ---> UnitIsTrivial('target')
+--      **** Test this with mob a level that will give me a shard, then one that wont. (literally the 1 level difference)
+--      **** Test with alliance that would and wouldn't yield honor
+--  XXX. Drain soul on non-target
+--      ---> UnitIsTappedByPlayer(unit): Can set a field is_tapped when I add targets to map? 
+--      *** I believe this is solved because of the COMBAT_LOG event checking for party kill
+--  4. Sometimes shadowburn doesn't get mapped (rarely) (~1s left from what I noticed)
+--  5. Reloading during a fight causes soul to be lost if drained after reboot but during fight
 
 -- TODO: TESTING - - - - - - - - - - - - - - - -
+-- ---> Drain_soul/shadowburn raid killing target, I dont have tag myself but my raid does and i cast drain soul
+--        * Test by going to azshara with Ash have her kill and i drain soul at end
+-- ---> No xp/honor target kill
+--        * Also test in Azshara 
 -- ---> Enslave demon
 -- ---> Test summong/moving around shards/etc..
 --        >> Move shards WHILE summong.. i.e. after initial spellcast sent
 --        >> QUESTION: Does it use the shard when SPELLCAST_SUCCESS || what if after success I move shards around? Which is used!
--- ---> Soul fire; Enslave demon; make sure all shard using spells accounted for
 -- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
 -- ---> Someone else fighting alliance; I also get tag? Dunno.. test drain soul on alliacne.. also on one that was already fighting 
 --        another and see what happens
 -- ---> Drain soul on enemy that I dont have tagged
 -- ---> Drain_soul/shadowburned target that does NOT yield xp/honor shouldn't get mapped || mess anything else up!
+--
 -- - - - - - - - - - - - - - PLAY TESTING MOSTLY - - - - - - - - - - - - -
 -- ---> Logout and test on relogin conjured items/stones still the same? What about after 15min?
 -- ---> 15min logout -- does data get cleared? Right before 15m mark, right after 15m mark.
