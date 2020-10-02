@@ -12,6 +12,7 @@ core.FIFTEEN_MINUTES = 900 -- seconds
 core.FIND_HERBS_SID = 2383
 core.SUCCESSFUL_SUMMON_DIFF  = 0.5 -- seconds
 core.DRAIN_SOUL_DIFF = 1 -- seconds
+core.ACTIVE_TARGET_THRESHOLD = 10000
 
 -- Bags
 core.SLOT_NULL  = 666
@@ -25,7 +26,6 @@ core.RITUAL_OF_SUMM_SID = 698
 core.SHADOWBURN_DEBUFF_TIME = 5
 core.SOUL_FIRE_SID = { 6353, 17924 }
 core.ENSLAVE_DEMON_SID = { 1098, 11725, 11726 }
-
 core.DRAIN_SOUL_SID = { 1120, 8288, 8289, 11675 }
 core.SHADOWBURN_SID = { 17877, 18867, 18868, 18869, 18870, 18871 }
 core.SHARD_PRODUCING_SID = {
@@ -176,20 +176,7 @@ core.CREATE_STONE_SID = {
   [17953] = "Create Firestone (Major)",
 }
 
-
--- TODO: MOVE ME
-local function is_spell_create_hs(spell_id)
-  local spell_name = core.CREATE_STONE_SID[spell_id]
-  if spell_name ~= nil and string.find(spell_name, core.HEALTHSTONE) then
-    return true
-  end
-  return false
-end
-core.is_spell_create_hs = is_spell_create_hs
-
-
--- HS mapped to consume HS spell_id
--- NON_HS mappted to item_id
+--[[ HS mapped to consume HS spell_id; NON_HS mappted to item_id --]]
 core.SPELL_NAME_TO_ITEM_ID = {
   ["HS"] = {
     ["Create Healthstone (Minor)"]   = {
@@ -292,7 +279,6 @@ local boss_id = {
     14834, -- hakkar
 }
 
-
 local class_colors = {
     ["Druid"] = "FF7D0A",
     ["Hunter"] = "A9D271",
@@ -359,6 +345,16 @@ end
 core.is_boss = is_boss
 
 
+local function is_spell_create_hs(spell_id)
+  local spell_name = core.CREATE_STONE_SID[spell_id]
+  if spell_name ~= nil and string.find(spell_name, core.HEALTHSTONE) then
+    return true
+  end
+  return false
+end
+core.is_spell_create_hs = is_spell_create_hs
+
+
 --[[ Return player subzone and realzone as concatenated string --]]
 local function get_player_zone()
     local real_zone = GetRealZoneText()
@@ -371,7 +367,7 @@ local function get_player_zone()
 end
 core.get_player_zone = get_player_zone
 
--- Create a deep copy of a table
+
 local function deep_copy(obj)
   if type(obj) ~= 'table' then return obj end
     local res = {}
@@ -405,27 +401,3 @@ local function is_target_player(tar_guid)
   return string.find(tar_guid, "Player") ~= nil
 end
 core.is_target_player = is_target_player
-
-
---[[******* DEBUG TOOLS ********]]--
-local function print_table(my_table)
-  for key, val in pairs(my_table) do
-    print("KEY: " .. key)
-    print("VALUE: " .. val)
-  end
-end
-core.print_table = print_table
-
-
-local function print_shard_info(shard_mapping) 
-  for i=1, 5 do
-    for j=1, 16 do
-      if shard_mapping[i][j] ~= nil then
-        print("Bag " .. i-1 .. " slot " .. j ..
-       "\nKilled " .. shard_mapping[i][j].name
-        .. "\n Location: " .. shard_mapping[i][j].location .. "\n - - - - - -") 
-      end
-    end
-  end
-end
-core.print_shard_info = print_shard_info

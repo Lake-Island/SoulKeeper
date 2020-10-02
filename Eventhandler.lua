@@ -15,9 +15,9 @@ local player_in_raid_instance = false
 local duplicate_spellcast_success = false
 local locked_shards = {}
 local locked_stone_iid = {}
-local player_target_map = {}
 local active_target_map = {}
 local next_open_shard_slot = {}
+local total_active_targets = 0
 local last_shard_unlock_time = 0
 
 local drain_soul_end_t = nil
@@ -68,6 +68,23 @@ end
 
 local function set_stone(stone_iid, val)
   stone_mapping[stone_iid] = val
+end
+
+
+local function add_active_target(tar_guid, data)
+  if active_target_map[tar_guid] ~= nil then return end
+  if total_active_targets > core.ACTIVE_TARGET_THRESHOLD then
+    active_target_map = {}
+    total_active_targets = 0
+  end
+  active_target_map[tar_guid] = data
+  total_active_targets = total_active_targets + 1
+end
+
+
+local function remove_active_target(tar_guid)
+  active_target_map[tar_guid] = nil
+  total_active_targets = total_active_targets - 1
 end
 
 
@@ -171,11 +188,10 @@ local function set_shard_data()
         elseif count == 3 then
           test_data = { name="Nefarian", is_boss = true }
         else
-          test_data = { name=string.format("shard_%d", count) }
+          test_data = { name=string.format("shard_%d", count) , level = 666}
         end
         test_data.id = count
         count = count + 1
-        --shard_mapping[bag_num+1][slot_num] = core.deep_copy(test_data)
         set_shard(bag_num+1, slot_num, core.deep_copy(test_data))
       end
     end
@@ -308,6 +324,10 @@ local function set_killed_target(dest_name, dest_guid)
   killed_target.id = GetServerTime()
   killed_target.name = dest_name 
   killed_target.location = core.get_player_zone()
+  if core.table_contains(active_target_map, dest_guid) then
+    killed_target.level = active_target_map[dest_guid].level
+    remove_active_target(dest_guid)
+  end
 
   if core.is_target_player(dest_guid) then 
     local class_name, _, race_name = GetPlayerInfoByGUID(dest_guid)
@@ -318,11 +338,6 @@ local function set_killed_target(dest_name, dest_guid)
     killed_target.faction_color = core.ALLIANCE_BLUE
     if core.is_faction_horde(race) then
       killed_target.faction_color = core.HORDE_RED
-    end
-
-    if core.table_contains(player_target_map, dest_guid) then
-      killed_target.level = player_target_map[dest_guid]
-      player_target_map[dest_guid] = nil
     end
 
   elseif core.is_boss(core.get_npc_id(dest_guid)) then
@@ -521,8 +536,8 @@ end
 local function killed_target_produced_shard(dest_guid)
   if core.table_contains(active_target_map, dest_guid) then
     local curr_target = active_target_map[dest_guid]
-    active_target_map[dest_guid] = nil
     if curr_target.is_trivial or curr_target.tap_denied then
+      remove_active_target(dest_guid)
       return false
     else
       return true
@@ -539,17 +554,17 @@ local function shard_producing_spell_handler(spell_id)
 
   for _,spell_list in ipairs(core.SHARD_PRODUCING_SID) do
     if core.list_contains(spell_list, spell_id) then
-      local curr_target = { 
+      local target_data = { 
         is_trivial = UnitIsTrivial("target"),
-        tap_denied = UnitIsTapDenied("target")
+        tap_denied = UnitIsTapDenied("target"),
+        level = UnitLevel("target")
       }
-      active_target_map[tar_guid] = curr_target
+      add_active_target(tar_guid, target_data)
       return true
     end
   end
   return false
 end
-
 
 
 ----------------------- EVENTS ----------------------------
@@ -561,9 +576,6 @@ current_target_frame:SetScript("OnEvent",
   function(self, event)
     current_target_guid = UnitGUID("target")
     current_target_name = UnitName("target")
-    if core.is_target_player(current_target_guid) then
-      player_target_map[current_target_guid] = UnitLevel("target")
-    end
   end)
 
 
@@ -663,9 +675,6 @@ reload_frame:SetScript("OnEvent",
     set_shard_data()
     reset_expired_stone_mapping()
     player_in_raid_instance = core.is_player_in_raid()
-
-    -- TODO: COMBINE THESE TWO OR MAKE HELPER TO CLEAR THEm
-    player_target_map = {}
     active_target_map = {}
     update_next_open_bag_slot()
 
@@ -694,7 +703,6 @@ cast_success_frame:SetScript("OnEvent",
     shard_producing_spell_handler(spell_id)
     local shard_consuming_spell = shard_consuming_spell_handler(spell_id, spell_name)
 
-    -- TODO: Helper function for the inside of this condition?
     if not shard_consuming_spell then
 
       -- consume HS/SS 
@@ -785,25 +793,19 @@ core.toggle_chat = toggle_chat
  
 
 -- --------------------------TODO-------------------
--- TODO: Refactor how events are called
---  **** REFACTOR: player_target_map to just use active_target_map?
 -- TODO: Any print statements I keep need to put those strings in core.. maybe make helper function that prints strings
 -- TODO: Update announced messages, if alliance add information... etc..
--- TODO: ADD 20 man raid boss ID's to core
--- TODO: Fun little notes
+-- TODO: Fun little notes; EMOTE the notes!!!
+    -- SendChatMessage("BOOM", "EMOTE")
 -- TODO: UX: Give the user some options through the console
 --         ----> Enable/disable certain features
 --         ----> Custom message can be written by user through console
+-- TODO: ADD 20 man raid boss ID's to core
 --
 -- ---------------------------- FUTURE ----------------------------------------------
 -- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
 -- TODO: When trading HS -- whisper player the name of the soul!
 --
--- TODO: BUG ----------------------------------------------
---  2. SHADOWBURN I wasnt' handling it in bag_update handler... now causing a bug with my update
---  3. Sometimes shadowburn doesn't get mapped (rarely) (~1s left from what I noticed)
---  4. Reloading during a fight causes soul to be lost if drained after reboot but during fight
-
 -- TODO: TESTING - - - - - - - - - - - - - - - -
 -- ---> SUMMONING
 -- ---> Enslave demon
@@ -811,6 +813,7 @@ core.toggle_chat = toggle_chat
 --        >> Move shards WHILE summong.. i.e. after initial spellcast sent
 --        >> QUESTION: Does it use the shard when SPELLCAST_SUCCESS || what if after success I move shards around? Which is used!
 -- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
+-- ---> KILL ALLIANCE!!!
 --
 -- - - - - - - - - - - - - - PLAY TESTING MOSTLY - - - - - - - - - - - - -
 -- ---> Logout and test on relogin conjured items/stones still the same? What about after 15min?
