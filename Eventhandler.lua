@@ -16,6 +16,7 @@ local duplicate_spellcast_success = false
 local locked_shards = {}
 local locked_stone_iid = {}
 local player_target_map = {}
+local active_target_map = {}
 local next_open_shard_slot = {}
 local last_shard_unlock_time = 0
 
@@ -352,7 +353,6 @@ local function add_next_shard()
       reset_drain_soul_data()
     end
     -- space available?
-    -- TODO: Problem is adding a shard when target not tapped
     if next(next_open_shard_slot) ~= nil then 
       shard_added = true
     end
@@ -486,8 +486,8 @@ local function lock_shard(bag, slot)
 end
 
 
---[[ True if spell_id is shard consuming -- create stone; summon pet; soul fire; enslave ]]--
-local function shard_consuming_spell(spell_id, spell_name) 
+--[[ True if spell_id is shard consuming -- create stone; summon pet; shadowburn; soul fire; enslave ]]--
+local function shard_consuming_spell_handler(spell_id, spell_name) 
   local shard_data, next_shard_location = get_next_shard_data()
 
   if core.table_contains(core.CREATE_STONE_SID, spell_id) then
@@ -498,6 +498,9 @@ local function shard_consuming_spell(spell_id, spell_name)
 
   elseif core.table_contains(core.SUMMON_PET_SID, spell_id) then
     print("Cast " .. spell_name .. " with the soul of <" .. shard_data.name .. ">")
+
+  elseif core.list_contains(core.SHADOWBURN_SID, spell_id) then
+    print("SHADOWBURN -- soul of " .. shard_data.name)
 
   elseif core.list_contains(core.SOUL_FIRE_SID, spell_id) then
     print("SOUL_FIRE -- soul of " .. shard_data.name)
@@ -514,6 +517,41 @@ local function shard_consuming_spell(spell_id, spell_name)
 end
 
 
+--[[ Return true if active target yields honor/xp and is tagged by player ]]--
+local function killed_target_produced_shard(dest_guid)
+  if core.table_contains(active_target_map, dest_guid) then
+    local curr_target = active_target_map[dest_guid]
+    active_target_map[dest_guid] = nil
+    if curr_target.is_trivial or curr_target.tap_denied then
+      return false
+    else
+      return true
+    end
+  end
+  return false
+end
+
+
+--[[ Map if target is tagged and yields xp/honor for shard consuming spell ]]--
+local function shard_producing_spell_handler(spell_id)
+  local tar_guid = UnitGUID("target")
+  if spell_id == nil or tar_guid == nil then return end
+
+  for _,spell_list in ipairs(core.SHARD_PRODUCING_SID) do
+    if core.list_contains(spell_list, spell_id) then
+      local curr_target = { 
+        is_trivial = UnitIsTrivial("target"),
+        tap_denied = UnitIsTapDenied("target")
+      }
+      active_target_map[tar_guid] = curr_target
+      return true
+    end
+  end
+  return false
+end
+
+
+
 ----------------------- EVENTS ----------------------------
 
 
@@ -523,7 +561,6 @@ current_target_frame:SetScript("OnEvent",
   function(self, event)
     current_target_guid = UnitGUID("target")
     current_target_name = UnitName("target")
-
     if core.is_target_player(current_target_guid) then
       player_target_map[current_target_guid] = UnitLevel("target")
     end
@@ -535,13 +572,7 @@ combat_log_frame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 combat_log_frame:SetScript("OnEvent", function(self,event)
   local curr_time = GetTime()
   local _, subevent, _, _, _, _, _, dest_guid, dest_name, _, _, _, spell_name = CombatLogGetCurrentEventInfo()
-
-  local event_to_execute = core.PARTY_KILL
-  if player_in_raid_instance then
-    event_to_execute = core.UNIT_DIED
-  end
-
-  if subevent == event_to_execute then 
+  if subevent == core.UNIT_DIED and killed_target_produced_shard(dest_guid) then 
     set_killed_target(dest_name, dest_guid)
     add_next_shard()
   elseif spell_name == core.SHADOWBURN then
@@ -553,8 +584,8 @@ end)
 local channel_start_frame = CreateFrame("Frame")
 channel_start_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_START")
 channel_start_frame:SetScript("OnEvent", function(self,event, ...)
-  local spell_name, _, spell_id, start_time = ChannelInfo()  
-  if spell_name == core.DRAIN_SOUL then 
+  local _, _, spell_id = ... 
+  if core.list_contains(core.DRAIN_SOUL_SID, spell_id) then 
     drain_soul_data.casting = true
     drain_soul_data.target_guid = current_target_guid
   end
@@ -565,11 +596,10 @@ local channel_end_frame = CreateFrame("Frame")
 channel_end_frame:RegisterEvent("UNIT_SPELLCAST_CHANNEL_STOP")
 channel_end_frame:SetScript("OnEvent", function(self,event, ...)
   local _, _, spell_id = ... 
-  local spell_name = GetSpellInfo(spell_id)
-  if spell_name == core.DRAIN_SOUL then 
+  if core.list_contains(core.DRAIN_SOUL_SID, spell_id) then 
     drain_soul_end_t = GetTime()
     reset_drain_soul_data()
-  elseif spell_name == core.RITUAL_OF_SUMM then
+  elseif spell_id == core.RITUAL_OF_SUMM_SID then
     summon_details.end_time = GetTime()
   end
 end)
@@ -633,7 +663,10 @@ reload_frame:SetScript("OnEvent",
     set_shard_data()
     reset_expired_stone_mapping()
     player_in_raid_instance = core.is_player_in_raid()
+
+    -- TODO: COMBINE THESE TWO OR MAKE HELPER TO CLEAR THEm
     player_target_map = {}
+    active_target_map = {}
     update_next_open_bag_slot()
 
     -- TODO: REMOVE ME!!!! (or just add for Krel :))
@@ -658,8 +691,12 @@ cast_success_frame:SetScript("OnEvent",
     local consumed_stone_iid = is_consume_stone_spell(spell_id)
 
     if duplicate_spellcast_success then return end
+    shard_producing_spell_handler(spell_id)
+    local shard_consuming_spell = shard_consuming_spell_handler(spell_id, spell_name)
 
-    if not shard_consuming_spell(spell_id, spell_name) then
+    -- TODO: Helper function for the inside of this condition?
+    if not shard_consuming_spell then
+
       -- consume HS/SS 
       if consumed_stone_iid ~= nil and core.table_contains(stone_mapping, consumed_stone_iid) then
         local stone_data = get_stone(consumed_stone_iid)
@@ -749,6 +786,7 @@ core.toggle_chat = toggle_chat
 
 -- --------------------------TODO-------------------
 -- TODO: Refactor how events are called
+--  **** REFACTOR: player_target_map to just use active_target_map?
 -- TODO: Any print statements I keep need to put those strings in core.. maybe make helper function that prints strings
 -- TODO: Update announced messages, if alliance add information... etc..
 -- TODO: ADD 20 man raid boss ID's to core
@@ -762,32 +800,17 @@ core.toggle_chat = toggle_chat
 -- TODO: When trading HS -- whisper player the name of the soul!
 --
 -- TODO: BUG ----------------------------------------------
---  1. Summon (predict shard) move another to be used it bugs out
---    >> Put shard infront of one that sto be used..  e.g. after unlock.. updating position doesnt seem to work update  correctly see prints
---  2. Kill no-xp/honor target... shard_added = true, then do a bag_update it'll think a shard was added
---      ---> UnitIsTrivial('target')
---      **** Test this with mob a level that will give me a shard, then one that wont. (literally the 1 level difference)
---      **** Test with alliance that would and wouldn't yield honor
---  XXX. Drain soul on non-target
---      ---> UnitIsTappedByPlayer(unit): Can set a field is_tapped when I add targets to map? 
---      *** I believe this is solved because of the COMBAT_LOG event checking for party kill
---  4. Sometimes shadowburn doesn't get mapped (rarely) (~1s left from what I noticed)
---  5. Reloading during a fight causes soul to be lost if drained after reboot but during fight
+--  2. SHADOWBURN I wasnt' handling it in bag_update handler... now causing a bug with my update
+--  3. Sometimes shadowburn doesn't get mapped (rarely) (~1s left from what I noticed)
+--  4. Reloading during a fight causes soul to be lost if drained after reboot but during fight
 
 -- TODO: TESTING - - - - - - - - - - - - - - - -
--- ---> Drain_soul/shadowburn raid killing target, I dont have tag myself but my raid does and i cast drain soul
---        * Test by going to azshara with Ash have her kill and i drain soul at end
--- ---> No xp/honor target kill
---        * Also test in Azshara 
+-- ---> SUMMONING
 -- ---> Enslave demon
 -- ---> Test summong/moving around shards/etc..
 --        >> Move shards WHILE summong.. i.e. after initial spellcast sent
 --        >> QUESTION: Does it use the shard when SPELLCAST_SUCCESS || what if after success I move shards around? Which is used!
 -- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
--- ---> Someone else fighting alliance; I also get tag? Dunno.. test drain soul on alliacne.. also on one that was already fighting 
---        another and see what happens
--- ---> Drain soul on enemy that I dont have tagged
--- ---> Drain_soul/shadowburned target that does NOT yield xp/honor shouldn't get mapped || mess anything else up!
 --
 -- - - - - - - - - - - - - - PLAY TESTING MOSTLY - - - - - - - - - - - - -
 -- ---> Logout and test on relogin conjured items/stones still the same? What about after 15min?

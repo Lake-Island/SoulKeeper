@@ -10,7 +10,6 @@ core.SUMMON_MESSAGE = "Summoning %s with the soul of <%s>, please assist!"
 
 core.FIFTEEN_MINUTES = 900 -- seconds
 core.FIND_HERBS_SID = 2383
-core.RITUAL_OF_SUMM_SID = 698
 core.SUCCESSFUL_SUMMON_DIFF  = 0.5 -- seconds
 core.DRAIN_SOUL_DIFF = 1 -- seconds
 
@@ -22,24 +21,28 @@ core.NORMAL_BAG_TYPE = 0
 
 -- Spells
 core.SOUL_SHARD_ID = 6265
-core.DRAIN_SOUL = "Drain Soul"
-core.RITUAL_OF_SUMM = "Ritual of Summoning"
+core.RITUAL_OF_SUMM_SID = 698
+core.SHADOWBURN_DEBUFF_TIME = 5
+core.SOUL_FIRE_SID = { 6353, 17924 }
+core.ENSLAVE_DEMON_SID = { 1098, 11725, 11726 }
 
+core.DRAIN_SOUL_SID = { 1120, 8288, 8289, 11675 }
+core.SHADOWBURN_SID = { 17877, 18867, 18868, 18869, 18870, 18871 }
+core.SHARD_PRODUCING_SID = {
+  core.DRAIN_SOUL_SID,
+  core.SHADOWBURN_SID
+}
+
+core.SHADOWBURN = "Shadowburn"
 core.SUMMON_PET_SID = {
   [697] = "Summon Voidwalker",
   [712] = "Summon Succubus",
   [691] = "Summon Felhunter"
 }
 
-core.SOUL_FIRE_SID = { 6353, 17924 }
-core.ENSLAVE_DEMON_SID = { 1098, 11725, 11726 }
-
 -- Misc
-core.PARTY_KILL  = "PARTY_KILL"
 core.UNIT_DIED  = "UNIT_DIED"
-core.SHADOWBURN = "Shadowburn"
 core.RAID = "raid"
-core.SHADOWBURN_DEBUFF_TIME = 5
 core.AURA_APPLIED = "SPELL_AURA_APPLIED"
 core.AURA_REMOVED = "SPELL_AURA_REMOVED"
 core.DEFAULT_KILLED_TARGET_DATA = {
