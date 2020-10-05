@@ -4,10 +4,6 @@ shard_mapping = { {}, {}, {}, {}, {} }
 stone_mapping = {}
 logout_time = nil
 enable_chat = false
-
--- TODO: Change current_target_guid/name into one object with 2 fields
-local current_target_guid = nil
-local current_target_name = nil
 local last_bag_update_time = nil
 local shard_added = false
 local stone_deleted = false
@@ -19,6 +15,11 @@ local active_target_map = {}
 local next_open_shard_slot = {}
 local total_active_targets = 0
 local last_shard_unlock_time = 0
+
+local current_target = {
+  guid = nil,
+  name = nil
+}
 
 local previous_spellcast = {
   id = nil,
@@ -601,8 +602,10 @@ local current_target_frame = CreateFrame("Frame")
 current_target_frame:RegisterEvent("PLAYER_TARGET_CHANGED")
 current_target_frame:SetScript("OnEvent",
   function(self, event)
-    current_target_guid = UnitGUID("target")
-    current_target_name = UnitName("target")
+    current_target = {
+      guid = UnitGUID("target"),
+      name = UnitName("target")
+    }
   end)
 
 
@@ -626,7 +629,7 @@ channel_start_frame:SetScript("OnEvent", function(self,event, ...)
   local _, _, spell_id = ... 
   if core.list_contains(core.DRAIN_SOUL_SID, spell_id) then 
     drain_soul_data.casting = true
-    drain_soul_data.target_guid = current_target_guid
+    drain_soul_data.target_guid = current_target.guid
   end
 end)
 
@@ -756,9 +759,9 @@ cast_sent_frame:SetScript("OnEvent",
       local data = get_stone(soulstone_iid)
       local mssg = format_message(core.SS_MESSAGE_LIST, target, data)
       message_active_party(mssg)
-    elseif spell_id == core.RITUAL_OF_SUMM_SID and core.is_target_player(current_target_guid) then
+    elseif spell_id == core.RITUAL_OF_SUMM_SID and core.is_target_player(current_target.guid) then
       local data = get_next_shard_data()
-      local mssg = format_message(core.SUMMON_MESSAGE_LIST, current_target_name, data)
+      local mssg = format_message(core.SUMMON_MESSAGE_LIST, current_target.name, data)
       print(mssg)
       message_active_party(mssg)
     end
