@@ -412,19 +412,11 @@ end
 local function successful_summon_handler(curr_time)
   -- end_time set on successful summon, before this is called
   if summon_details.location ~= nil and summon_details.end_time ~= nil then
-
     local difference = curr_time - summon_details.end_time
     if difference <= core.SUCCESSFUL_SUMMON_DIFF then 
-
-      -- TODO: REMOVE ME -----------------------------------
-      local curr_shard_data = get_shard(summon_details.location.bag, summon_details.location.slot)
-      print("Successful summon --- Removing soul: " .. curr_shard_data.name)
-      -- TODO: REMOVE ME -----------------------------------
-
       reset_consumed_locked_shard_data(summon_details.location)
       set_shard(summon_details.location.bag, summon_details.location.slot, nil)
     end
-
     reset_summon_details()
   end
 end
@@ -463,6 +455,9 @@ local function bag_update_shard_handler(curr_time)
   if shard_deleted then 
     local del_shard = locked_shards[1]
     set_shard(del_shard.bag, del_shard.slot, nil)
+    if summon_details.location ~= nil then
+      summon_details.location = find_next_shard_location()
+    end
     shard_deleted = false
     locked_shards =  {}
   end
@@ -745,12 +740,6 @@ cast_success_frame:SetScript("OnEvent",
       -- summon cast successfully; shard not yet consumed
       elseif spell_id == core.RITUAL_OF_SUMM_SID then
         summon_details.location = find_next_shard_location()
-
-        -- TODO: REMOVE ME ---------------
-        local summ_name = get_shard(summon_details.location.bag, summon_details.location.slot)
-        print("SPELLCAST_SUCCESS: SUMMON PREDICTING USE OF SOUL: " .. summ_name.name)
-        -- TODO: REMOVE ME ---------------
-
       end
     end
 
@@ -824,7 +813,7 @@ core.toggle_chat = toggle_chat
 -- TODO: Change current_target_guid/name into one object with 2 fields
 -- TODO: BEFORE RAID ---- 
 --          XXX. Improve announcement messages
---          1. Testing (summon especially)
+--          XXX. Testing (summon especially)
 --          2. Fun little notes; EMOTE the notes!!!
 --              *** SendChatMessage("BOOM", "EMOTE")
 --
