@@ -13,13 +13,17 @@ local shard_added = false
 local stone_deleted = false
 local shard_deleted = false
 local player_in_raid_instance = false
-local duplicate_spellcast_success = false
 local locked_shards = {}
 local locked_stone_iid = {}
 local active_target_map = {}
 local next_open_shard_slot = {}
 local total_active_targets = 0
 local last_shard_unlock_time = 0
+
+local previous_spellcast = {
+  id = nil,
+  time = nil
+}
 
 local drain_soul_end_t = nil
 local drain_soul_data = { 
@@ -69,6 +73,12 @@ end
 
 local function set_stone(stone_iid, val)
   stone_mapping[stone_iid] = val
+end
+
+
+local function set_previous_spellcast_data(spell_id, curr_time)
+  previous_spellcast.id = spell_id
+  previous_spellcast.time = curr_time
 end
 
 
@@ -300,7 +310,6 @@ local function reset_expired_stone_mapping()
     current_time = GetServerTime()
     stone_mapping_expr_time = logout_time + core.FIFTEEN_MINUTES
     if current_time > stone_mapping_expr_time then
-      print("EXPIRED: Clearing stone_mapping data...") -- TODO: REMOVE ME 
       stone_mapping = {}
     end
     logout_time = nil
@@ -568,6 +577,28 @@ local function shard_producing_spell_handler(spell_id)
 end
 
 
+local function format_message(message_list, target, data)
+  local ret_mssg = nil
+  if data.is_player then
+    ret_mssg = string.format(message_list.player, target, data.name, data.level, data.race, data.class)
+  elseif data.is_boss then
+    ret_mssg = string.format(message_list.boss, target, data.name)
+  else
+    ret_mssg = string.format(message_list.default, target, data.name)
+  end
+  return ret_mssg
+end
+
+
+local function duplicate_spellcast_success(spell_id, curr_time)
+  if spell_id ~= nil and spell_id == previous_spellcast.id and 
+     curr_time == previous_spellcast.time then
+    return true
+  end
+  return false
+end
+
+
 ----------------------- EVENTS ----------------------------
 
 
@@ -629,10 +660,6 @@ item_frame:SetScript("OnEvent",
     successful_summon_handler(curr_time)
     bag_update_shard_handler(curr_time)
     bag_update_stone_handler()
-
-    if duplicate_spellcast_success then
-      duplicate_spellcast_success = false
-    end
 
     update_next_open_bag_slot()
   end)
@@ -699,11 +726,13 @@ cast_success_frame:SetScript("OnEvent",
     local _, _, spell_id = ...
     local spell_name = GetSpellInfo(spell_id)
     local consumed_stone_iid = is_consume_stone_spell(spell_id)
+    local curr_time = GetTime()
 
-    if duplicate_spellcast_success then return end
+    if duplicate_spellcast_success(spell_id, curr_time) then return end
+    set_previous_spellcast_data(spell_id, curr_time)
+
     shard_producing_spell_handler(spell_id)
     local shard_consuming_spell = shard_consuming_spell_handler(spell_id, spell_name)
-
     if not shard_consuming_spell then
 
       -- consume HS/SS 
@@ -722,41 +751,11 @@ cast_success_frame:SetScript("OnEvent",
         print("SPELLCAST_SUCCESS: SUMMON PREDICTING USE OF SOUL: " .. summ_name.name)
         -- TODO: REMOVE ME ---------------
 
-      else 
-        return
       end
     end
 
-    duplicate_spellcast_success = true
   end)
 
-
--- TODO: MOVE ME
--- TODO: RENAME
--- TODO: Refactor -- repeated code
-local function format_message(message_type, target, data)
-  local ret_mssg = nil
-  if message_type == core.SS_MESSAGE_TYPE then
-    if data.is_player then
-      ret_mssg = string.format(core.SS_MESSAGE.player, target, data.name, data.level, data.race, data.class)
-    elseif data.is_boss then
-      ret_mssg = string.format(core.SS_MESSAGE.boss, target, data.name)
-    else
-      ret_mssg = string.format(core.SS_MESSAGE.default, target, data.name)
-    end
-  elseif message_type == core.SUMMON_MESSAGE_TYPE then 
-    if data.is_player then
-      ret_mssg = string.format(core.SUMMON_MESSAGE.player, target, data.name, data.level, data.race, data.class)
-    elseif data.is_boss then
-      ret_mssg = string.format(core.SUMMON_MESSAGE.boss, target, data.name)
-    else
-      ret_mssg = string.format(core.SUMMON_MESSAGE.default, target, data.name)
-    end
-  else
-    print("Invalid message type!")
-  end
-  return ret_mssg
-end
 
 local cast_sent_frame = CreateFrame("Frame")
 cast_sent_frame:RegisterEvent("UNIT_SPELLCAST_SENT")
@@ -766,11 +765,11 @@ cast_sent_frame:SetScript("OnEvent",
     local soulstone_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
     if soulstone_iid ~= nil then 
       local data = get_stone(soulstone_iid)
-      local mssg = format_message(core.SS_MESSAGE_TYPE, target, data)
+      local mssg = format_message(core.SS_MESSAGE_LIST, target, data)
       message_active_party(mssg)
     elseif spell_id == core.RITUAL_OF_SUMM_SID and core.is_target_player(current_target_guid) then
       local data = get_next_shard_data()
-      local mssg = format_message(core.SUMMON_MESSAGE_TYPE, current_target_name, data)
+      local mssg = format_message(core.SUMMON_MESSAGE_LIST, current_target_name, data)
       print(mssg)
       message_active_party(mssg)
     end
@@ -824,30 +823,34 @@ core.toggle_chat = toggle_chat
 -- --------------------------TODO-------------------
 -- TODO: Change current_target_guid/name into one object with 2 fields
 -- TODO: BEFORE RAID ---- 
---          0. Improve announcement messages
+--          XXX. Improve announcement messages
 --          1. Testing (summon especially)
---          2. Update announced messages, if alliance add information... etc..
---          3. Fun little notes; EMOTE the notes!!!
+--          2. Fun little notes; EMOTE the notes!!!
 --              *** SendChatMessage("BOOM", "EMOTE")
 --
 -- TODO: Add color to the print statements
 -- TODO: UX: Give the user some options through the console
 --         ----> Enable/disable certain features
 --         ----> Custom message can be written by user through console
+--         ----> Enable/disable emotes.. add custom emotes.. etc.
 -- TODO: Any print statements I keep need to put those strings in core.. maybe make helper function that prints strings
 -- TODO: ADD 20 man raid boss ID's to core
--- TODO: Map summoned pet to soul name.. so when random lose pet can label it?
--- **** What runs when my pet gets automatically dismissed.. how can I know when that occurs? Test diff methods..
---        combat log, spellcast_success, etc.?
 --
 -- ---------------------------- FUTURE ----------------------------------------------
 -- TODO: Bunch of unique messages for summoning/making SS different types of souls.. can be picked randomly
 -- TODO: User can create their own messages when summoning/creating a SS 
 -- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
 -- TODO: When trading HS -- whisper player the name of the soul!
+-- TODO: Map summoned pet to soul name.. so when random lose pet can label it?
+-- **** What runs when my pet gets automatically dismissed.. how can I know when that occurs? Test diff methods..
+--        combat log, spellcast_success, etc.?
 --
 -- TODO: TESTING - - - - - - - - - - - - - - - -
+-- ---> Soul stone messages
+-- ---> Test adding SS to toolbar again .. does it auto target me?
 -- ---> SUMMONING
+-- ---> Ensure SPELLCAST_SUCCEEDED never runs twice 
+--      **** (will see duplicate print statements when casting shard consuming spells/summon/consume stone)
 -- ---> Enslave demon
 -- ---> Test summong/moving around shards/etc..
 --        >> Move shards WHILE summong.. i.e. after initial spellcast sent
