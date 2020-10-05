@@ -5,8 +5,19 @@ core.NON_HS = "NON-HS"
 core.HEALTHSTONE = "Healthstone"
 core.CHAT_TYPE_RAID = "RAID"
 core.CHAT_TYPE_PARTY = "PARTY"
-core.SS_MESSAGE = "%s, the soul of <%s> is yours!"
-core.SUMMON_MESSAGE = "Summoning %s with the soul of <%s>, please assist!"
+
+core.SS_MESSAGE_TYPE = 1
+core.SUMMON_MESSAGE_TYPE = 2
+core.SS_MESSAGE = {
+  default = "_%s_ the soul of <%s> is yours!",
+  player  = "_%s_ I give you the soul of <%s>, a delicious level %d %s %s!",
+  boss    = "_%s_ I gift you the soul of the great <%s>!"
+}
+core.SUMMON_MESSAGE = {
+  default = "Summoning _%s_ with the soul of <%s>!",
+  player  = "Summoning _%s_ with the soul of <%s>, a doomed level %d %s %s!",
+  boss    = "Summoning _%s_ with the soul of the ominous <%s>!"
+}
 
 core.FIFTEEN_MINUTES = 900 -- seconds
 core.FIND_HERBS_SID = 2383

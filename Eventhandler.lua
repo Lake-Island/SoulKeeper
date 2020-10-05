@@ -5,6 +5,7 @@ stone_mapping = {}
 logout_time = nil
 enable_chat = false
 
+-- TODO: Change current_target_guid/name into one object with 2 fields
 local current_target_guid = nil
 local current_target_name = nil
 local last_bag_update_time = nil
@@ -179,14 +180,14 @@ local function set_shard_data()
         local test_data = nil
         if count == 1 then
           test_data = { 
-            name="Guy", race="Human", class="Mage", is_player = true, level = 60, is_boss = false, faction_color = core.ALLIANCE_BLUE 
+            name="Guy", race="Human", class="Mage", location="somewhere",is_player = true, level = 60, is_boss = false, faction_color = core.ALLIANCE_BLUE 
           }
         elseif count == 2 then
           test_data = { 
-            name="Krel", race="Undead", class="Warlock", is_player = true, level = 60, is_boss = false, faction_color = core.HORDE_RED 
+            name="Krel", race="Undead", class="Warlock", location="somewhere", is_player = true, level = 60, is_boss = false, faction_color = core.HORDE_RED 
           }
         elseif count == 3 then
-          test_data = { name="Nefarian", is_boss = true }
+          test_data = { name="Nefarian", location="somewhere", is_boss = true }
         else
           test_data = { name=string.format("shard_%d", count) , level = 666}
         end
@@ -730,20 +731,47 @@ cast_success_frame:SetScript("OnEvent",
   end)
 
 
+-- TODO: MOVE ME
+-- TODO: RENAME
+-- TODO: Refactor -- repeated code
+local function format_message(message_type, target, data)
+  local ret_mssg = nil
+  if message_type == core.SS_MESSAGE_TYPE then
+    if data.is_player then
+      ret_mssg = string.format(core.SS_MESSAGE.player, target, data.name, data.level, data.race, data.class)
+    elseif data.is_boss then
+      ret_mssg = string.format(core.SS_MESSAGE.boss, target, data.name)
+    else
+      ret_mssg = string.format(core.SS_MESSAGE.default, target, data.name)
+    end
+  elseif message_type == core.SUMMON_MESSAGE_TYPE then 
+    if data.is_player then
+      ret_mssg = string.format(core.SUMMON_MESSAGE.player, target, data.name, data.level, data.race, data.class)
+    elseif data.is_boss then
+      ret_mssg = string.format(core.SUMMON_MESSAGE.boss, target, data.name)
+    else
+      ret_mssg = string.format(core.SUMMON_MESSAGE.default, target, data.name)
+    end
+  else
+    print("Invalid message type!")
+  end
+  return ret_mssg
+end
+
 local cast_sent_frame = CreateFrame("Frame")
 cast_sent_frame:RegisterEvent("UNIT_SPELLCAST_SENT")
 cast_sent_frame:SetScript("OnEvent", 
   function(self,event,...)
     local _, target, _, spell_id = ...
     local soulstone_iid = core.CONSUME_SS_SID_TO_IID[spell_id]
-
     if soulstone_iid ~= nil then 
-      local stone_data = get_stone(soulstone_iid)
-      local mssg = string.format(core.SS_MESSAGE, target, stone_data.name)
+      local data = get_stone(soulstone_iid)
+      local mssg = format_message(core.SS_MESSAGE_TYPE, target, data)
       message_active_party(mssg)
     elseif spell_id == core.RITUAL_OF_SUMM_SID and core.is_target_player(current_target_guid) then
-      local shard_data = get_next_shard_data()
-      local mssg = string.format(core.SUMMON_MESSAGE, current_target_name, shard_data.name)
+      local data = get_next_shard_data()
+      local mssg = format_message(core.SUMMON_MESSAGE_TYPE, current_target_name, data)
+      print(mssg)
       message_active_party(mssg)
     end
   end)
@@ -762,6 +790,7 @@ delete_item_frame:SetScript("OnEvent",
   
 
 ------------------ API --------------------
+
 
 local function get_shard_mapping() 
   return shard_mapping
@@ -793,16 +822,27 @@ core.toggle_chat = toggle_chat
  
 
 -- --------------------------TODO-------------------
--- TODO: Any print statements I keep need to put those strings in core.. maybe make helper function that prints strings
--- TODO: Update announced messages, if alliance add information... etc..
--- TODO: Fun little notes; EMOTE the notes!!!
-    -- SendChatMessage("BOOM", "EMOTE")
+-- TODO: Change current_target_guid/name into one object with 2 fields
+-- TODO: BEFORE RAID ---- 
+--          0. Improve announcement messages
+--          1. Testing (summon especially)
+--          2. Update announced messages, if alliance add information... etc..
+--          3. Fun little notes; EMOTE the notes!!!
+--              *** SendChatMessage("BOOM", "EMOTE")
+--
+-- TODO: Add color to the print statements
 -- TODO: UX: Give the user some options through the console
 --         ----> Enable/disable certain features
 --         ----> Custom message can be written by user through console
+-- TODO: Any print statements I keep need to put those strings in core.. maybe make helper function that prints strings
 -- TODO: ADD 20 man raid boss ID's to core
+-- TODO: Map summoned pet to soul name.. so when random lose pet can label it?
+-- **** What runs when my pet gets automatically dismissed.. how can I know when that occurs? Test diff methods..
+--        combat log, spellcast_success, etc.?
 --
 -- ---------------------------- FUTURE ----------------------------------------------
+-- TODO: Bunch of unique messages for summoning/making SS different types of souls.. can be picked randomly
+-- TODO: User can create their own messages when summoning/creating a SS 
 -- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
 -- TODO: When trading HS -- whisper player the name of the soul!
 --
