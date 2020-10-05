@@ -6,17 +6,15 @@ core.HEALTHSTONE = "Healthstone"
 core.CHAT_TYPE_RAID = "RAID"
 core.CHAT_TYPE_PARTY = "PARTY"
 
-core.SS_MESSAGE_TYPE = 1
-core.SUMMON_MESSAGE_TYPE = 2
-core.SS_MESSAGE = {
+core.SS_MESSAGE_LIST = {
   default = "_%s_ the soul of <%s> is yours!",
   player  = "_%s_ I give you the soul of <%s>, a delicious level %d %s %s!",
   boss    = "_%s_ I gift you the soul of the great <%s>!"
 }
-core.SUMMON_MESSAGE = {
+core.SUMMON_MESSAGE_LIST = {
   default = "Summoning _%s_ with the soul of <%s>!",
   player  = "Summoning _%s_ with the soul of <%s>, a doomed level %d %s %s!",
-  boss    = "Summoning _%s_ with the soul of the ominous <%s>!"
+  boss    = "Summoning _%s_ with the ominous soul of <%s>!"
 }
 
 core.FIFTEEN_MINUTES = 900 -- seconds
