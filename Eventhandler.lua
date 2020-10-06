@@ -298,8 +298,6 @@ local function message_active_party(mssg)
       SendChatMessage(mssg, core.CHAT_TYPE_RAID)
     elseif IsInGroup() then
       SendChatMessage(mssg, core.CHAT_TYPE_PARTY)
-    else
-      print("Not currently in a party/raid")
     end
   end
 end
@@ -507,31 +505,43 @@ local function lock_shard(bag, slot)
 end
 
 
+local function is_spell_shard_consuming(spell_id)
+  for _,spell_list in ipairs(core.SHARD_CONSUMING_SID) do
+    if core.list_contains(spell_list, spell_id) then
+      return true
+    end
+  end
+  return false
+end
+
+
+local function is_spell_shard_producing(spell_id)
+  for _,spell_list in ipairs(core.SHARD_PRODUCING_SID) do
+    if core.list_contains(spell_list, spell_id) then
+      return true
+    end
+  end
+  return false
+end
+
+
 --[[ True if spell_id is shard consuming -- create stone; summon pet; shadowburn; soul fire; enslave ]]--
 local function shard_consuming_spell_handler(spell_id, spell_name) 
   local shard_data, next_shard_location = get_next_shard_data()
+  local output_txt = nil
 
   if core.table_contains(core.CREATE_STONE_SID, spell_id) then
     stone_iid = get_stone_item_id(spell_id, spell_name)
     set_stone(stone_iid, shard_data)
     stone_name = core.STONE_IID_TO_NAME[stone_iid]
-    print("Created " .. stone_name .. " with the soul of <" .. shard_data.name .. ">")
-
-  elseif core.table_contains(core.SUMMON_PET_SID, spell_id) then
-    print("Cast " .. spell_name .. " with the soul of <" .. shard_data.name .. ">")
-
-  elseif core.list_contains(core.SHADOWBURN_SID, spell_id) then
-    print("SHADOWBURN -- soul of " .. shard_data.name)
-
-  elseif core.list_contains(core.SOUL_FIRE_SID, spell_id) then
-    print("SOUL_FIRE -- soul of " .. shard_data.name)
-
-  elseif core.list_contains(core.ENSLAVE_DEMON_SID, spell_id) then
-    print("ENSLAVE_DEMON -- soul of " .. shard_data.name)
+    output_txt = string.format(core.OUTPUT_TXT.create_stone, stone_name, shard_data.name)
+  elseif is_spell_shard_consuming(spell_id) then
+    output_txt = string.format(core.OUTPUT_TXT.cast_spell, spell_name, shard_data.name)
   else
     return false
   end
 
+  core.print_color(output_txt)
   set_shard(next_shard_location.bag, next_shard_location.slot, nil)
   reset_consumed_locked_shard_data(next_shard_location)
   return true
@@ -558,16 +568,14 @@ local function shard_producing_spell_handler(spell_id)
   local tar_guid = UnitGUID("target")
   if spell_id == nil or tar_guid == nil then return end
 
-  for _,spell_list in ipairs(core.SHARD_PRODUCING_SID) do
-    if core.list_contains(spell_list, spell_id) then
-      local target_data = { 
-        is_trivial = UnitIsTrivial("target"),
-        tap_denied = UnitIsTapDenied("target"),
-        level = UnitLevel("target")
-      }
-      add_active_target(tar_guid, target_data)
-      return true
-    end
+  if is_spell_shard_producing(spell_id) then
+    local target_data = { 
+      is_trivial = UnitIsTrivial("target"),
+      tap_denied = UnitIsTapDenied("target"),
+      level = UnitLevel("target")
+    }
+    add_active_target(tar_guid, target_data)
+    return true
   end
   return false
 end
@@ -737,8 +745,8 @@ cast_success_frame:SetScript("OnEvent",
       if consumed_stone_iid ~= nil and core.table_contains(stone_mapping, consumed_stone_iid) then
         local stone_data = get_stone(consumed_stone_iid)
         set_stone(consumed_stone_iid, nil)
-
-        print("Consumed the soul of <" .. stone_data.name .. ">")
+        local output_txt = string.format(core.OUTPUT_TXT.consume_stone, stone_data.name)
+        core.print_color(output_txt)
 
       -- summon cast successfully; shard not yet consumed
       elseif spell_id == core.RITUAL_OF_SUMM_SID then
@@ -762,7 +770,6 @@ cast_sent_frame:SetScript("OnEvent",
     elseif spell_id == core.RITUAL_OF_SUMM_SID and core.is_target_player(current_target.guid) then
       local data = get_next_shard_data()
       local mssg = format_message(core.SUMMON_MESSAGE_LIST, current_target.name, data)
-      print(mssg)
       message_active_party(mssg)
     end
   end)
@@ -813,20 +820,19 @@ core.toggle_chat = toggle_chat
  
 
 -- --------------------------TODO-------------------
--- TODO: Change current_target_guid/name into one object with 2 fields
+-- TODO: ADD 20 man raid boss ID's to core
+--
 -- TODO: BEFORE RAID ---- 
 --          XXX. Improve announcement messages
 --          XXX. Testing (summon especially)
 --          2. Fun little notes; EMOTE the notes!!!
 --              *** SendChatMessage("BOOM", "EMOTE")
 --
--- TODO: Add color to the print statements
 -- TODO: UX: Give the user some options through the console
+--         ----> Enable/disable console printing.. maybe what does/doesn't get printed?
 --         ----> Enable/disable certain features
 --         ----> Custom message can be written by user through console
 --         ----> Enable/disable emotes.. add custom emotes.. etc.
--- TODO: Any print statements I keep need to put those strings in core.. maybe make helper function that prints strings
--- TODO: ADD 20 man raid boss ID's to core
 --
 -- ---------------------------- FUTURE ----------------------------------------------
 -- TODO: Bunch of unique messages for summoning/making SS different types of souls.. can be picked randomly

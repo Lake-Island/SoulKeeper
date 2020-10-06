@@ -1,20 +1,41 @@
 local _, core = ...
 
+
+-- colors
+core.RED = "FA5858"
+core.BLUE = "58ACFA"
+core.PURPLE = "9F81F7"
+core.ORANGE = "FF8000"
+core.HORDE_RED = "F78181"
+core.ALLIANCE_BLUE = "81BEF7"
+
+core.RAID_BOSS = "|cFF%sRaid Boss"            -- color;
+core.SOUL_OF = "|cFF%sSoul of <%s>"           -- color; name
+core.PLAYER_DETAILS = "|cFF%sLevel %d %s %s"  -- color; level; race; class
+
 core.HS = "HS"
 core.NON_HS = "NON-HS"
-core.HEALTHSTONE = "Healthstone"
 core.CHAT_TYPE_RAID = "RAID"
 core.CHAT_TYPE_PARTY = "PARTY"
+core.SHADOWBURN = "Shadowburn"
+core.HEALTHSTONE = "Healthstone"
 
 core.SS_MESSAGE_LIST = {
   default = "_%s_ the soul of <%s> is yours!",
   player  = "_%s_ I give you the soul of <%s>, a delicious level %d %s %s!",
   boss    = "_%s_ I gift you the soul of the great <%s>!"
 }
+
 core.SUMMON_MESSAGE_LIST = {
   default = "Summoning _%s_ with the soul of <%s>!",
   player  = "Summoning _%s_ with the soul of <%s>, a doomed level %d %s %s!",
   boss    = "Summoning _%s_ with the ominous soul of <%s>!"
+}
+
+core.OUTPUT_TXT = {
+  cast_spell    = "Cast _%s_ with the soul of <%s>!",
+  create_stone  = "Created _%s_ with the soul of <%s>!",
+  consume_stone = "Consumed the soul of <%s>!"
 }
 
 core.FIFTEEN_MINUTES = 900 -- seconds
@@ -29,24 +50,32 @@ core.MAX_BAG_INDEX = 4
 core.SOUL_BAG_TYPE = 3
 core.NORMAL_BAG_TYPE = 0
 
--- Spells
 core.SOUL_SHARD_ID = 6265
 core.RITUAL_OF_SUMM_SID = 698
+core.SUMMON_SUCCUBUS_SID = 712
+core.SUMMON_FELHUNTER_SID = 691
+core.SUMMON_VOIDWALKER_SID = 697
 core.SHADOWBURN_DEBUFF_TIME = 5
 core.SOUL_FIRE_SID = { 6353, 17924 }
 core.ENSLAVE_DEMON_SID = { 1098, 11725, 11726 }
 core.DRAIN_SOUL_SID = { 1120, 8288, 8289, 11675 }
 core.SHADOWBURN_SID = { 17877, 18867, 18868, 18869, 18870, 18871 }
+core.SUMMON_PET_SID = { 
+  core.SUMMON_VOIDWALKER_SID, 
+  core.SUMMON_SUCCUBUS_SID, 
+  core.SUMMON_FELHUNTER_SID
+}
+
 core.SHARD_PRODUCING_SID = {
   core.DRAIN_SOUL_SID,
   core.SHADOWBURN_SID
 }
 
-core.SHADOWBURN = "Shadowburn"
-core.SUMMON_PET_SID = {
-  [697] = "Summon Voidwalker",
-  [712] = "Summon Succubus",
-  [691] = "Summon Felhunter"
+core.SHARD_CONSUMING_SID = {
+  core.SUMMON_PET_SID,
+  core.SHADOWBURN_SID,
+  core.SOUL_FIRE_SID,
+  core.ENSLAVE_DEMON_SID
 }
 
 -- Misc
@@ -410,3 +439,14 @@ local function is_target_player(tar_guid)
   return string.find(tar_guid, "Player") ~= nil
 end
 core.is_target_player = is_target_player
+
+
+local function print_color(text, color)
+  local default_color = core.PURPLE
+  if not color then
+      color = default_color
+  end
+
+  print("\124cff" .. color .. "[SoulKeeper]: " .. text .. "\124r")
+end
+core.print_color = print_color

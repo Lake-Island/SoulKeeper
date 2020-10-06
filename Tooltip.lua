@@ -1,16 +1,5 @@
 local _, core = ...
 
--- TODO: Move to core
-core.ORANGE = "FF8000"
-core.BLUE = "58ACFA"
-core.PURPLE = "9F81F7"
-core.ALLIANCE_BLUE = "81BEF7"
-core.HORDE_RED = "F78181"
-core.RED = "FA5858"
-
-core.SOUL_OF = "|cFF%sSoul of <%s>"           -- color; name
-core.PLAYER_DETAILS = "|cFF%sLevel %d %s %s"  -- color; level; race; class
-core.RAID_BOSS = "|cFF%sRaid Boss"            -- color;
 
 local function get_mouse_over_bag_slot() 
     local focus = GetMouseFocus()
