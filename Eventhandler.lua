@@ -603,6 +603,31 @@ local function duplicate_spellcast_success(spell_id, curr_time)
 end
 
 
+local function format_message(message_list, target, data)
+  local ret_mssg = nil
+  if data.is_player then
+    ret_mssg = string.format(message_list.player, target, data.name, data.level, data.race, data.class)
+  elseif data.is_boss then
+    ret_mssg = string.format(message_list.boss, target, data.name)
+  else
+    ret_mssg = string.format(message_list.default, target, data.name)
+  end
+  return ret_mssg
+end
+
+
+local function duplicate_spellcast_success(spell_id, curr_time)
+  if spell_id ~= nil and spell_id == previous_spellcast.id and 
+     curr_time == previous_spellcast.time then
+    print("DUPLICATE - RETURN") -- TODO: REMOVE ME
+    return true
+  end
+
+  print("Initial Spell") -- TODO: REMOVE ME!!
+  return false
+end
+
+
 ----------------------- EVENTS ----------------------------
 
 
