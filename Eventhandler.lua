@@ -160,13 +160,19 @@ end
 
 --[[ Map unmapped shards ]]--
 local function set_default_shard_data()
+  local curr_id = -3
   for bag_num = 0, core.MAX_BAG_INDEX, 1 do
     local num_bag_slots = GetContainerNumSlots(bag_num)
     for slot_num = 1, num_bag_slots, 1 do
       local curr_item_id = GetContainerItemID(bag_num, slot_num)
       local curr_shard_slot = get_shard(bag_num+1, slot_num)
       if curr_item_id == core.SOUL_SHARD_ID and curr_shard_slot == nil then
-        set_shard(bag_num+1, slot_num, core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA))
+        local killed_target_copy = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
+        killed_target_copy.id = curr_id
+        curr_id = curr_id - 1
+        set_shard(bag_num+1, slot_num, killed_target_copy)
+      elseif curr_item_id ~= core.SOUL_SHARD_ID and curr_shard_slot ~= nil then
+        set_shard(bag_num+1, slot_num, nil)
       end
     end
   end 
@@ -400,8 +406,8 @@ end
 local function remove_old_shard_data(shard)
   local old_bag  = shard.bag
   local old_slot = shard.slot
-  local old_id = get_shard(old_bag, old_slot).id
-  if old_id == shard.data.id then
+  local old_shard = get_shard(old_bag, old_slot)
+  if old_shard ~= nil and old_shard.id == shard.data.id then
     set_shard(old_bag, old_slot, nil)
   end
 end
@@ -619,11 +625,8 @@ end
 local function duplicate_spellcast_success(spell_id, curr_time)
   if spell_id ~= nil and spell_id == previous_spellcast.id and 
      curr_time == previous_spellcast.time then
-    print("DUPLICATE - RETURN") -- TODO: REMOVE ME
     return true
   end
-
-  print("Initial Spell") -- TODO: REMOVE ME!!
   return false
 end
 
@@ -830,6 +833,10 @@ core.get_stone_mapping = get_stone_mapping
 local function reset_mapping_data()
   shard_mapping = { {}, {}, {}, {}, {} }
   stone_mapping = {}
+  locked_shards = {}
+  active_target_map = {}
+  total_active_targets = 0
+  reset_summon_details()
   set_default_shard_data()
 end
 core.reset_mapping_data = reset_mapping_data
@@ -864,29 +871,13 @@ core.toggle_chat = toggle_chat
 -- TODO: User can create their own messages when summoning/creating a SS 
 -- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
 -- TODO: When trading HS -- whisper player the name of the soul!
--- TODO: Map summoned pet to soul name.. so when random lose pet can label it?
--- **** What runs when my pet gets automatically dismissed.. how can I know when that occurs? Test diff methods..
---        combat log, spellcast_success, etc.?
 --
 -- TODO: TESTING - - - - - - - - - - - - - - - -
--- ---> Soul stone messages
--- ---> Test adding SS to toolbar again .. does it auto target me?
--- ---> SUMMONING
--- ---> Ensure SPELLCAST_SUCCEEDED never runs twice 
---      **** (will see duplicate print statements when casting shard consuming spells/summon/consume stone)
 -- ---> Enslave demon
--- ---> Test summong/moving around shards/etc..
---        >> Move shards WHILE summong.. i.e. after initial spellcast sent
---        >> QUESTION: Does it use the shard when SPELLCAST_SUCCESS || what if after success I move shards around? Which is used!
 -- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
--- ---> KILL ALLIANCE!!!
 --
 -- - - - - - - - - - - - - - PLAY TESTING MOSTLY - - - - - - - - - - - - -
 -- ---> Logout and test on relogin conjured items/stones still the same? What about after 15min?
 -- ---> 15min logout -- does data get cleared? Right before 15m mark, right after 15m mark.
 --        > Also test going in/out of dungeons after a while, etc... randomly died in AQ saw the clear message
---
--- XXX TEST CREATING EVERY STONE / CASTING EVERY PET
--- XXX Use locked shard for all different consuming spells. Also try locking shard that WONT be used when casting shard 
---          consuming spells
--- XXX DELETE SHARD > then lock/unlock a different shard; will break after first attempt
+-- ---> Kill alliance

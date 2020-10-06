@@ -9,7 +9,7 @@ EMPTY_STR = ""
 
 local function print_help()
   help_data = {
-    "Soulkeeper - - - - - - - - - - - - - - - - - - - - - -",
+    "***************** SoulKeeper *****************",
     "/sk reset >> reset all data",
     "/sk chat  >> toggle enabling chat message",
   }
@@ -22,7 +22,7 @@ end
 
 local function soulkeeper(cmd)
   if cmd == RESET_DATA then
-    print("Resetting data...")
+    core.print_color("Shard data reset.", core.RED)
     core.reset_mapping_data() 
   elseif cmd == CHAT then
     core.toggle_chat()
