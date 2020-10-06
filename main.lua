@@ -1,17 +1,17 @@
 local _, core = ...
 
--- TODO: Move to core?
-RESET_DATA = "reset"
-CHAT = "chat"
-HELP = "help"
-EMPTY_STR = ""
-
+local ALERT = "alert"
+local GROUP = "group"
+local RESET_DATA = "reset"
+local HELP = "help"
+local EMPTY_STR = ""
 
 local function print_help()
   help_data = {
     "***************** SoulKeeper *****************",
-    "/sk reset >> reset all data",
-    "/sk chat  >> toggle enabling chat message",
+    "/sk alert >> Toggle printing alerts to chat.",
+    "/sk group >> Toggle sending messages to your raid/party.",
+    "/sk reset >> Reset all data."
   }
 
   for i=1, #help_data do 
@@ -21,11 +21,21 @@ end
 
 
 local function soulkeeper(cmd)
-  if cmd == RESET_DATA then
-    core.print_color("Shard data reset.", core.RED)
+  if cmd == ALERT then
+    if core.toggle_alert() then
+      core.print_color("Enabled alerts.", core.GREEN)
+    else
+      core.print_color("Disabled alerts.", core.YELLOW)
+    end
+  elseif cmd == GROUP then
+    if core.toggle_group_messages() then
+      core.print_color("Enabled group messaging.", core.GREEN)
+    else
+      core.print_color("Disabled group messaging.", core.YELLOW)
+    end
+  elseif cmd == RESET_DATA then
     core.reset_mapping_data() 
-  elseif cmd == CHAT then
-    core.toggle_chat()
+    core.print_color("Shard data reset.", core.RED)
   elseif cmd == EMPTY_STR or cmd == HELP then
     print_help()
   end

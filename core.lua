@@ -4,8 +4,10 @@ local _, core = ...
 -- colors
 core.RED = "FA5858"
 core.BLUE = "58ACFA"
+core.GREEN = "19FF19"
 core.PURPLE = "9F81F7"
 core.ORANGE = "FF8000"
+core.YELLOW = "FFFF4D"
 core.HORDE_RED = "F78181"
 core.ALLIANCE_BLUE = "81BEF7"
 
@@ -33,9 +35,9 @@ core.SUMMON_MESSAGE_LIST = {
 }
 
 core.OUTPUT_TXT = {
-  cast_spell    = "Cast _%s_ with the soul of <%s>!",
-  create_stone  = "Created _%s_ with the soul of <%s>!",
-  consume_stone = "Consumed the soul of <%s>!"
+  cast_spell    = "Cast %s with the soul of %s!",
+  create_stone  = "Created %s with the soul of %s!",
+  consume_stone = "Consumed the soul of %s!"
 }
 
 core.FIFTEEN_MINUTES = 900 -- seconds

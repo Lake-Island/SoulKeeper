@@ -2,7 +2,7 @@
 ## Title: SoulKeeper
 ## Author: Krel
 ## Version: 0.1
-##SavedVariablesPerCharacter: shard_mapping, stone_mapping, logout_time, enable_chat
+##SavedVariablesPerCharacter: shard_mapping, stone_mapping, logout_time, enable_group_messages, enable_alert
 
 Core.lua
 Tooltip.lua

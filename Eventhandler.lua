@@ -3,7 +3,8 @@ local _, core = ...
 shard_mapping = { {}, {}, {}, {}, {} }
 stone_mapping = {}
 logout_time = nil
-enable_chat = false
+enable_alert = true
+enable_group_messages = true
 local last_bag_update_time = nil
 local shard_added = false
 local stone_deleted = false
@@ -179,6 +180,13 @@ local function set_default_shard_data()
 end
 
 
+local function alert(mssg, color)
+  if enable_alert then
+    core.print_color(mssg, color)
+  end
+end
+
+
 --[[ 
  TODO: REMOVE ME ------------------------------------------------------
   Sets shard data to nubmers for testting
@@ -299,7 +307,7 @@ end
 
 --[[ Display message to group (raid > party) ]]--
 local function message_active_party(mssg)
-  if enable_chat then
+  if enable_group_messages then
     if IsInRaid() then
       SendChatMessage(mssg, core.CHAT_TYPE_RAID)
     elseif IsInGroup() then
@@ -547,7 +555,7 @@ local function shard_consuming_spell_handler(spell_id, spell_name)
     return false
   end
 
-  core.print_color(output_txt)
+  alert(output_txt)
   set_shard(next_shard_location.bag, next_shard_location.slot, nil)
   reset_consumed_locked_shard_data(next_shard_location)
   return true
@@ -774,7 +782,7 @@ cast_success_frame:SetScript("OnEvent",
         local stone_data = get_stone(consumed_stone_iid)
         set_stone(consumed_stone_iid, nil)
         local output_txt = string.format(core.OUTPUT_TXT.consume_stone, stone_data.name)
-        core.print_color(output_txt)
+        alert(output_txt)
 
       -- summon cast successfully; shard not yet consumed
       elseif spell_id == core.RITUAL_OF_SUMM_SID then
@@ -842,14 +850,19 @@ end
 core.reset_mapping_data = reset_mapping_data
 
 
-local function toggle_chat()
-  enable_chat = not enable_chat
+local function toggle_group_messages()
+  enable_group_messages = not enable_group_messages
+  return enable_group_messages
 end
-core.toggle_chat = toggle_chat
+core.toggle_group_messages = toggle_group_messages
 
 
+local function toggle_alert()
+  enable_alert = not enable_alert
+  return enable_alert
+end
+core.toggle_alert = toggle_alert
 
- 
 
 -- --------------------------TODO-------------------
 -- TODO: ADD 20 man raid boss ID's to core
