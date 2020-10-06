@@ -3,7 +3,8 @@ local _, core = ...
 shard_mapping = { {}, {}, {}, {}, {} }
 stone_mapping = {}
 logout_time = nil
-enable_alert = true
+enable_alert = false
+enable_emote = true
 enable_group_messages = true
 local last_bag_update_time = nil
 local shard_added = false
@@ -54,7 +55,8 @@ local killed_target = {
   is_player = false,
   is_boss = false,
   level = nil,
-  faction_color = nil
+  faction_color = nil,
+  emote = nil
 }
 
 
@@ -111,7 +113,8 @@ local function reset_killed_target_data()
     is_player = false,
     is_boss = false,
     level = nil,
-    faction_color = nil
+    faction_color = nil,
+    emote = nil
   }
 end
 
@@ -180,9 +183,13 @@ local function set_default_shard_data()
 end
 
 
-local function alert(mssg, color)
-  if enable_alert then
+local function output_handler(mssg, data, color)
+  if mssg ~= nil and enable_alert then
     core.print_color(mssg, color)
+  end
+  if enable_emote and data.is_player then
+    local curr_emote = string.format(core.EMOTE, data.race, data.emote)
+    SendChatMessage(curr_emote, "EMOTE")
   end
 end
 
@@ -205,11 +212,11 @@ local function set_shard_data()
         local test_data = nil
         if count == 1 then
           test_data = { 
-            name="Guy", race="Human", class="Mage", location="somewhere",is_player = true, level = 60, is_boss = false, faction_color = core.ALLIANCE_BLUE 
+            name="Guy", race="Human", class="Mage", location="somewhere",is_player = true, level = 60, is_boss = false, faction_color = core.ALLIANCE_BLUE , emote = "ahh"
           }
         elseif count == 2 then
           test_data = { 
-            name="Krel", race="Undead", class="Warlock", location="somewhere", is_player = true, level = 60, is_boss = false, faction_color = core.HORDE_RED 
+            name="Krel", race="Undead", class="Warlock", location="somewhere", is_player = true, level = 60, is_boss = false, faction_color = core.HORDE_RED, emote = "I wasn't staring at your succubus, I swear!"
           }
         elseif count == 3 then
           test_data = { name="Nefarian", location="somewhere", is_boss = true }
@@ -357,7 +364,7 @@ local function set_killed_target(dest_name, dest_guid)
     killed_target.race = race_name
     killed_target.class = class_name
     killed_target.is_player = true 
-
+    killed_target.emote = core.random_emote()
     killed_target.faction_color = core.ALLIANCE_BLUE
     if core.is_faction_horde(race) then
       killed_target.faction_color = core.HORDE_RED
@@ -428,6 +435,8 @@ local function successful_summon_handler(curr_time)
     local difference = curr_time - summon_details.end_time
     if difference <= core.SUCCESSFUL_SUMMON_DIFF then 
       reset_consumed_locked_shard_data(summon_details.location)
+      local shard_data = get_shard(summon_details.location.bag, summon_details.location.slot)
+      output_handler(nil, shard_data)
       set_shard(summon_details.location.bag, summon_details.location.slot, nil)
     end
     reset_summon_details()
@@ -555,7 +564,7 @@ local function shard_consuming_spell_handler(spell_id, spell_name)
     return false
   end
 
-  alert(output_txt)
+  output_handler(output_txt, shard_data)
   set_shard(next_shard_location.bag, next_shard_location.slot, nil)
   reset_consumed_locked_shard_data(next_shard_location)
   return true
@@ -782,7 +791,6 @@ cast_success_frame:SetScript("OnEvent",
         local stone_data = get_stone(consumed_stone_iid)
         set_stone(consumed_stone_iid, nil)
         local output_txt = string.format(core.OUTPUT_TXT.consume_stone, stone_data.name)
-        alert(output_txt)
 
       -- summon cast successfully; shard not yet consumed
       elseif spell_id == core.RITUAL_OF_SUMM_SID then
@@ -864,20 +872,25 @@ end
 core.toggle_alert = toggle_alert
 
 
+local function toggle_emote()
+  enable_emote = not enable_emote
+  return enable_emote
+end
+core.toggle_emote = toggle_emote
+
+
 -- --------------------------TODO-------------------
+-- TODO: TEST EMOTES ON SUMMON
+-- TODO: NOTES/EMOTES on player shards + option to enable/disable them
+--          *** SendChatMessage("BOOM", "EMOTE")
 -- TODO: ADD 20 man raid boss ID's to core
---
--- TODO: BEFORE RAID ---- 
---          XXX. Improve announcement messages
---          XXX. Testing (summon especially)
---          2. Fun little notes; EMOTE the notes!!!
---              *** SendChatMessage("BOOM", "EMOTE")
+-- TODO: Disable setting_default_shard_data
+-- TODO: Get some alliance shards :P
 --
 -- TODO: UX: Give the user some options through the console
---         ----> Enable/disable console printing.. maybe what does/doesn't get printed?
---         ----> Enable/disable certain features
---         ----> Custom message can be written by user through console
+--         XXX Enable/disable console printing.. maybe what does/doesn't get printed?
 --         ----> Enable/disable emotes.. add custom emotes.. etc.
+--         ----> Custom message can be written by user through console
 --
 -- ---------------------------- FUTURE ----------------------------------------------
 -- TODO: Bunch of unique messages for summoning/making SS different types of souls.. can be picked randomly

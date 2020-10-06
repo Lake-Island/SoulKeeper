@@ -2,6 +2,7 @@ local _, core = ...
 
 local ALERT = "alert"
 local GROUP = "group"
+local EMOTE = "emote"
 local RESET_DATA = "reset"
 local HELP = "help"
 local EMPTY_STR = ""
@@ -11,6 +12,7 @@ local function print_help()
     "***************** SoulKeeper *****************",
     "/sk alert >> Toggle printing alerts to chat.",
     "/sk group >> Toggle sending messages to your raid/party.",
+    "/sk emote >> Toggle displaying emotes.",
     "/sk reset >> Reset all data."
   }
 
@@ -32,6 +34,12 @@ local function soulkeeper(cmd)
       core.print_color("Enabled group messaging.", core.GREEN)
     else
       core.print_color("Disabled group messaging.", core.YELLOW)
+    end
+  elseif cmd == EMOTE then
+    if core.toggle_emote() then
+      core.print_color("Enabled emotes.", core.GREEN)
+    else
+      core.print_color("Disabled emotes.", core.YELLOW)
     end
   elseif cmd == RESET_DATA then
     core.reset_mapping_data() 

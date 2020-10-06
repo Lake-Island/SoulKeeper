@@ -20,6 +20,7 @@ local function display_soul_data(tooltip, soul)
     local class_color = core.get_class_color(soul.class)
     tooltip:AddLine(string.format(core.SOUL_OF, class_color, soul.name))
     tooltip:AddLine(string.format(core.PLAYER_DETAILS, soul.faction_color, soul.level, soul.race, soul.class))
+    tooltip:AddLine(string.format(core.PLAYER_QUOTE, core.UNMELLOW_YELLOW, soul.emote))
   else 
     tooltip:AddLine(string.format(core.SOUL_OF, core.PURPLE, soul.name))
   end

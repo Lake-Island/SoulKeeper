@@ -1,6 +1,5 @@
 local _, core = ...
 
-
 -- colors
 core.RED = "FA5858"
 core.BLUE = "58ACFA"
@@ -10,10 +9,12 @@ core.ORANGE = "FF8000"
 core.YELLOW = "FFFF4D"
 core.HORDE_RED = "F78181"
 core.ALLIANCE_BLUE = "81BEF7"
+core.UNMELLOW_YELLOW = "D9FF70"
 
 core.RAID_BOSS = "|cFF%sRaid Boss"            -- color;
 core.SOUL_OF = "|cFF%sSoul of <%s>"           -- color; name
 core.PLAYER_DETAILS = "|cFF%sLevel %d %s %s"  -- color; level; race; class
+core.PLAYER_QUOTE = "|cFF%s'%s'"                -- color; emote
 
 core.HS = "HS"
 core.NON_HS = "NON-HS"
@@ -38,6 +39,26 @@ core.OUTPUT_TXT = {
   cast_spell    = "Cast %s with the soul of %s!",
   create_stone  = "Created %s with the soul of %s!",
   consume_stone = "Consumed the soul of %s!"
+}
+
+core.EMOTE = "cracks open a %s soul, you hear a feint whisper... '%s'"
+core.PLAYER_QUOTES = {
+  "Let me go!", 
+  "WHY?!?!?!", 
+  "Someone help me!",
+  "Its cramped in here!",
+  "What did I do to deserve this?!",
+  "Ahhhh!",
+  "I didn't mean to attack you!",
+  "Please let me out!",
+  "Dont do this!",
+  "I have gold, how much to let me out?!",
+  "What is wrong with you?!",
+  "You're a savage!",
+  "I need to PEEE!!!",
+  "WAIT I think I left the oven on!",
+  "But my parses!!!!",
+  "I wasn't staring at your succubus, I swear!",
 }
 
 core.FIFTEEN_MINUTES = 900 -- seconds
@@ -94,7 +115,8 @@ core.DEFAULT_KILLED_TARGET_DATA = {
   is_player = false,
   is_boss = false,
   level = nil,
-  faction_color = nil
+  faction_color = nil,
+  emote = nil
 }
 
 local stone_iid = {
@@ -452,3 +474,9 @@ local function print_color(text, color)
   print("\124cff" .. color .. "[SoulKeeper]: " .. text .. "\124r")
 end
 core.print_color = print_color
+
+
+local function random_emote()
+  return core.PLAYER_QUOTES[math.random(#core.PLAYER_QUOTES)]
+end
+core.random_emote = random_emote
