@@ -349,10 +349,20 @@ local function reset_consumed_locked_shard_data(shard_location)
 end
 
 
+local function remove_server_from_name(name)
+  local name_index = string.find(name, '-')
+  if name_index ~= nil then
+    return string.sub(name, 1, name_index-1)
+  else
+    return name
+  end
+end
+
+
 local function set_killed_target(dest_name, dest_guid)
   reset_killed_target_data()
   killed_target.id = GetServerTime()
-  killed_target.name = dest_name 
+  killed_target.name = remove_server_from_name(dest_name) 
   killed_target.location = core.get_player_zone()
   if core.table_contains(active_target_map, dest_guid) then
     killed_target.level = active_target_map[dest_guid].level
@@ -749,9 +759,8 @@ local reload_frame = CreateFrame("Frame")
 reload_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 reload_frame:SetScript("OnEvent", 
   function(self,event,...)
-    -- TODO: Change me back
-    --set_default_shard_data()
-    set_shard_data()
+    set_default_shard_data()
+    -- set_shard_data() -- TODO: REMOVE ME!!
     reset_expired_stone_mapping()
     player_in_raid_instance = core.is_player_in_raid()
     active_target_map = {}
