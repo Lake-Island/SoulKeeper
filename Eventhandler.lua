@@ -745,6 +745,7 @@ bag_slot_unlock_frame:RegisterEvent("ITEM_UNLOCKED")
 bag_slot_unlock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag, slot = ...
+    if bag == nil or slot == nil then return end
     local item_id = GetContainerItemID(bag, slot)
     bag = bag + 1
     if item_id == core.SOUL_SHARD_ID then
@@ -889,20 +890,14 @@ core.toggle_emote = toggle_emote
 
 
 -- --------------------------TODO-------------------
--- TODO: TEST EMOTES ON SUMMON
--- TODO: NOTES/EMOTES on player shards + option to enable/disable them
---          *** SendChatMessage("BOOM", "EMOTE")
 -- TODO: ADD 20 man raid boss ID's to core
--- TODO: Disable setting_default_shard_data
--- TODO: Get some alliance shards :P
 --
--- TODO: UX: Give the user some options through the console
---         XXX Enable/disable console printing.. maybe what does/doesn't get printed?
---         ----> Enable/disable emotes.. add custom emotes.. etc.
---         ----> Custom message can be written by user through console
+-- --------- BUG -----------
+-- TODO: SS in bank
 --
 -- ---------------------------- FUTURE ----------------------------------------------
--- TODO: Bunch of unique messages for summoning/making SS different types of souls.. can be picked randomly
+-- TODO: UI for user choices?
+-- TODO: More player quotes
 -- TODO: User can create their own messages when summoning/creating a SS 
 -- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
 -- TODO: When trading HS -- whisper player the name of the soul!
