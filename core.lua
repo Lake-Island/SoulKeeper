@@ -1,5 +1,9 @@
 local _, core = ...
 
+core.ALERT = "alert"
+core.GROUP = "group"
+core.EMOTE = "emote"
+
 -- colors
 core.RED = "FA5858"
 core.BLUE = "58ACFA"

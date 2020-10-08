@@ -868,25 +868,40 @@ end
 core.reset_mapping_data = reset_mapping_data
 
 
-local function toggle_group_messages()
-  enable_group_messages = not enable_group_messages
+local function get_group_messages()
   return enable_group_messages
 end
-core.toggle_group_messages = toggle_group_messages
+core.get_group_messages = get_group_messages
 
 
-local function toggle_alert()
-  enable_alert = not enable_alert
+local function set_group_messages(val)
+  enable_group_messages = val
+end
+core.set_group_messages = set_group_messages
+
+
+local function get_alert()
   return enable_alert
 end
-core.toggle_alert = toggle_alert
+core.get_alert = get_alert
 
 
-local function toggle_emote()
-  enable_emote = not enable_emote
+local function set_alert(val)
+  enable_alert = val
+end
+core.set_alert = set_alert
+
+
+local function get_emote()
   return enable_emote
 end
-core.toggle_emote = toggle_emote
+core.get_emote = get_emote
+
+
+local function set_emote(val)
+  enable_emote = val
+end
+core.set_emote = set_emote
 
 
 -- --------------------------TODO-------------------
