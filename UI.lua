@@ -98,7 +98,7 @@ local function create_settings_frame()
   );
 
   local emote_check_button = create_check_button(settings_frame, -(settings_frame:GetWidth()/3), -(settings_frame:GetHeight()/4) - 20, "Emotes", core.EMOTE);
-  emote_check_button.tooltip = "Toggle sending Soulstone/Summon messages to raid/party."
+  emote_check_button.tooltip = "Toggle displaying emotes when consuming player souls."
   emote_check_button:SetScript("OnClick", 
     function()
       toggle_check_button(emote_check_button, core.EMOTE)
@@ -106,12 +106,14 @@ local function create_settings_frame()
   );
 
   local group_check_button = create_check_button(settings_frame, -(settings_frame:GetWidth()/3), -(settings_frame:GetHeight()/4) - 40, "Group Messaging", core.GROUP);
-  group_check_button.tooltip = "Toggle displaying emotes when consuming player souls."
+  group_check_button.tooltip = "Toggle sending Soulstone/Summon messages to raid/party."
   group_check_button:SetScript("OnClick", 
     function()
       toggle_check_button(group_check_button, core.GROUP)
     end
   );
+
+  return settings_frame
 end
 core.create_settings_frame = create_settings_frame
 

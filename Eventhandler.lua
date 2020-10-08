@@ -731,6 +731,7 @@ bag_slot_lock_frame:RegisterEvent("ITEM_LOCKED")
 bag_slot_lock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag, slot = ...
+    if bag == nil or slot == nil then return end
     local item_id = GetContainerItemID(bag, slot)
     if item_id == core.SOUL_SHARD_ID then
       lock_shard(bag+1, slot) 
