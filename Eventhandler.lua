@@ -860,12 +860,3 @@ local function set_emote(val)
   enable_emote = val
 end
 core.set_emote = set_emote
-
-
--- --------------------------TODO-------------------
--- TODO: 20man boss ID
--- TODO: More quotes
---
----------- TEST -----------
--- ---> Enslave demon
--- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
