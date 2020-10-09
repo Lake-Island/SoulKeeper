@@ -1,6 +1,7 @@
 local _, core = ...
 
 shard_mapping = { {}, {}, {}, {}, {} }
+bank_shard_mapping = { {}, {}, {}, {}, {}, {}, {} }
 stone_mapping = {}
 logout_time = nil
 enable_alert = false
@@ -11,6 +12,7 @@ local shard_added = false
 local stone_deleted = false
 local shard_deleted = false
 local player_in_raid_instance = false
+local locked_bags = {}
 local locked_shards = {}
 local locked_stone_iid = {}
 local active_target_map = {}
@@ -529,12 +531,38 @@ local function unlock_shard(bag, slot)
 end
 
 
+local function unlock_bag(bag_num)
+  if #locked_bags == 0 then return end
+
+  -- swapping bags
+  local remove_index = 1
+  for index, locked_bag in pairs(locked_bags) do
+    if locked_bag.bag ~= bag_num then
+      remove_index = index
+      break
+    end
+  end
+
+  local removed_locked_bag = table.remove(locked_bags, remove_index)
+  shard_mapping[removed_locked_bag.bag] = core.deep_copy(removed_locked_bag.data)
+end
+
+
 local function lock_shard(bag, slot) 
   local locked_shard = {}
   locked_shard.bag = bag
   locked_shard.slot = slot
   locked_shard.data = get_shard(locked_shard.bag, locked_shard.slot)
   table.insert(locked_shards, locked_shard)
+end
+
+
+local function lock_bag(bag_num)
+  local locked_bag = {}
+  locked_bag.bag = bag_num
+  locked_bag.data = core.deep_copy(shard_mapping[bag_num])
+  shard_mapping[bag_num] = {}
+  table.insert(locked_bags, locked_bag)
 end
 
 
@@ -731,6 +759,16 @@ bag_slot_lock_frame:RegisterEvent("ITEM_LOCKED")
 bag_slot_lock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag, slot = ...
+
+    if slot == nil then
+      local real_bag_index = core.convert_bag_number_to_index(bag)
+      if bag ~= nil and not core.is_bag_empty(real_bag_index) then
+        print("LOCKING BAG!") -- TODO: REMOVE ME!!
+        lock_bag(real_bag_index+1)
+      end
+      return 
+    end
+
     local item_id = GetContainerItemID(bag, slot)
     if item_id == core.SOUL_SHARD_ID then
       lock_shard(bag+1, slot) 
@@ -745,7 +783,16 @@ bag_slot_unlock_frame:RegisterEvent("ITEM_UNLOCKED")
 bag_slot_unlock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag, slot = ...
-    if bag == nil or slot == nil then return end
+
+    if slot == nil then
+      if bag ~= nil then
+        print("UNLOCKING BAG") -- TODO: REMOVE ME
+        local real_bag_index = core.convert_bag_number_to_index(bag)
+        unlock_bag(real_bag_index+1)
+      end
+      return 
+    end
+
     local item_id = GetContainerItemID(bag, slot)
     bag = bag + 1
     if item_id == core.SOUL_SHARD_ID then
@@ -905,24 +952,14 @@ core.set_emote = set_emote
 
 
 -- --------------------------TODO-------------------
+-- TODO: Add reset data functionality
 -- TODO: ADD 20 man raid boss ID's to core
+-- TODO: More player quotes
 --
 -- --------- BUG -----------
--- TODO: SS in bank
---
--- ---------------------------- FUTURE ----------------------------------------------
--- TODO: UI for user choices?
--- TODO: More player quotes
--- TODO: User can create their own messages when summoning/creating a SS 
--- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
--- TODO: When trading HS -- whisper player the name of the soul!
+-- TODO: Soulshards in bank
+-- TODO: Swap bags
 --
 -- TODO: TESTING - - - - - - - - - - - - - - - -
 -- ---> Enslave demon
 -- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
---
--- - - - - - - - - - - - - - PLAY TESTING MOSTLY - - - - - - - - - - - - -
--- ---> Logout and test on relogin conjured items/stones still the same? What about after 15min?
--- ---> 15min logout -- does data get cleared? Right before 15m mark, right after 15m mark.
---        > Also test going in/out of dungeons after a while, etc... randomly died in AQ saw the clear message
--- ---> Kill alliance

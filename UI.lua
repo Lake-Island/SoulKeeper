@@ -116,6 +116,3 @@ local function create_settings_frame()
   return settings_frame
 end
 core.create_settings_frame = create_settings_frame
-
--- TODO: If already shown dont open another window.. test by typing /sk multiple times
--- TODO: Add reset button || add a CLI argument? .. maybe with popup confirming decision

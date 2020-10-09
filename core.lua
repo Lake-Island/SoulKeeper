@@ -18,7 +18,7 @@ core.UNMELLOW_YELLOW = "D9FF70"
 core.RAID_BOSS = "|cFF%sRaid Boss"            -- color;
 core.SOUL_OF = "|cFF%sSoul of <%s>"           -- color; name
 core.PLAYER_DETAILS = "|cFF%sLevel %d %s %s"  -- color; level; race; class
-core.PLAYER_QUOTE = "|cFF%s'%s'"                -- color; emote
+core.PLAYER_QUOTE = "|cFF%s'%s'"              -- color; emote
 
 core.HS = "HS"
 core.NON_HS = "NON-HS"
@@ -484,3 +484,25 @@ local function random_emote()
   return core.PLAYER_QUOTES[math.random(#core.PLAYER_QUOTES)]
 end
 core.random_emote = random_emote
+
+
+local function is_bag_empty(bag)
+  if GetContainerNumFreeSlots(bag) == GetContainerNumSlots(bag) then
+    return true
+  end
+  return false
+end
+core.is_bag_empty = is_bag_empty
+
+
+--[[ 
+   When bags are locked, their values start from the second bag at 20
+   Return the real index of the corresonding bag.
+   e.g. bag 2 --> (20+1)%10 = 1 (its real index)
+]]--
+local function convert_bag_number_to_index(bag_num)
+  return (bag_num+1) % 10
+end
+core.convert_bag_number_to_index = convert_bag_number_to_index
+
+
