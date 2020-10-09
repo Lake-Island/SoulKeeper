@@ -194,45 +194,6 @@ local function output_handler(mssg, data, color)
 end
 
 
---[[ 
- TODO: REMOVE ME ------------------------------------------------------
-  Sets shard data to nubmers for testting
-]]--
-local function set_shard_data()
-  local count = 1
-  shard_mapping = { {}, {}, {}, {}, {} }
-  for bag_num = 0, core.MAX_BAG_INDEX, 1 do
-    local num_bag_slots = GetContainerNumSlots(bag_num)
-    for slot_num = 1, num_bag_slots, 1 do
-      local curr_item_id = GetContainerItemID(bag_num, slot_num)
-      --curr_shard_slot = shard_mapping[bag_num+1][slot_num]
-      local curr_shard_slot = get_shard(bag_num+1,slot_num)
-      -- unmapped soul shard; map it.
-      if curr_item_id == core.SOUL_SHARD_ID then
-        local test_data = nil
-        if count == 1 then
-          test_data = { 
-            name="Guy", race="Human", class="Mage", location="somewhere",is_player = true, level = 60, is_boss = false, faction_color = core.ALLIANCE_BLUE , emote = "ahh"
-          }
-        elseif count == 2 then
-          test_data = { 
-            name="Krel", race="Undead", class="Warlock", location="somewhere", is_player = true, level = 60, is_boss = false, faction_color = core.HORDE_RED, emote = "I wasn't staring at your succubus, I swear!"
-          }
-        elseif count == 3 then
-          test_data = { name="Nefarian", location="somewhere", is_boss = true }
-        else
-          test_data = { name=string.format("shard_%d", count) , level = 666}
-        end
-        test_data.id = count
-        count = count + 1
-        set_shard(bag_num+1, slot_num, core.deep_copy(test_data))
-      end
-    end
-  end 
-end
--- TODO: REMOVE ME ------------------------------------------------------
-
-
 --[[ Return the bag and slot of next shard that will be consumed --]]
 local function find_next_shard_location()
   local next_shard = { bag = core.SLOT_NULL, slot = core.SLOT_NULL }
@@ -762,14 +723,10 @@ reload_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 reload_frame:SetScript("OnEvent", 
   function(self,event,...)
     set_default_shard_data()
-    -- set_shard_data() -- TODO: REMOVE ME!!
     reset_expired_stone_mapping()
     player_in_raid_instance = core.is_player_in_raid()
     active_target_map = {}
     update_next_open_bag_slot()
-
-    -- TODO: REMOVE ME!!!! (or just add for Krel :))
-    CastSpellByID(core.FIND_HERBS_SID)
   end)
 
 
@@ -906,24 +863,9 @@ core.set_emote = set_emote
 
 
 -- --------------------------TODO-------------------
--- TODO: ADD 20 man raid boss ID's to core
+-- TODO: 20man boss ID
+-- TODO: More quotes
 --
--- --------- BUG -----------
--- TODO: SS in bank
---
--- ---------------------------- FUTURE ----------------------------------------------
--- TODO: UI for user choices?
--- TODO: More player quotes
--- TODO: User can create their own messages when summoning/creating a SS 
--- TODO: Shard details option... shift+select a shard or something will display all info.. time acquired, location, etc.
--- TODO: When trading HS -- whisper player the name of the soul!
---
--- TODO: TESTING - - - - - - - - - - - - - - - -
+---------- TEST -----------
 -- ---> Enslave demon
 -- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
---
--- - - - - - - - - - - - - - PLAY TESTING MOSTLY - - - - - - - - - - - - -
--- ---> Logout and test on relogin conjured items/stones still the same? What about after 15min?
--- ---> 15min logout -- does data get cleared? Right before 15m mark, right after 15m mark.
---        > Also test going in/out of dungeons after a while, etc... randomly died in AQ saw the clear message
--- ---> Kill alliance

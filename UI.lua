@@ -52,10 +52,46 @@ local function toggle_check_button(check_button, button_type)
 end
 
 
+local confirmation_frame = nil
+local function confirmation_frame_handler()
+  if confirmation_frame == nil then
+    confirmation_frame = CreateFrame("FRAME", nil, UIParent,  "BasicFrameTemplateWithInset")
+    confirmation_frame:SetSize(400,100)
+    confirmation_frame:SetPoint("TOP", 0, -250)
+
+    confirmation_frame.title = confirmation_frame:CreateFontString(nil, "OVERLAY")
+    confirmation_frame.title:SetFontObject("GameFontHighlight")
+    confirmation_frame.title:SetPoint("CENTER", confirmation_frame.TitleBg)
+    confirmation_frame.title:SetText("Are you sure?")
+
+    confirmation_frame.text = confirmation_frame:CreateFontString(nil, "OVERLAY")
+    confirmation_frame.text:SetFontObject("GameFontHighlight")
+    confirmation_frame.text:SetPoint("CENTER", 0, 10)
+    confirmation_frame.text:SetText("All shard data will be lost and non-recoverable")
+    confirmation_frame.text:SetTextColor(.9,.1,.1)
+
+    local reset_button = CreateFrame("Button", nil, confirmation_frame, "UIPanelButtonTemplate")
+    reset_button:SetSize(128, 24)
+    reset_button:SetText("Yes reset my data!")
+    reset_button:SetPoint("CENTER", 0, -20)
+    reset_button:SetScript(
+        "OnClick",
+        function()
+          core.reset_mapping_data()
+          core.print_color("Data reset", core.RED)
+          confirmation_frame:Hide()
+        end
+    )
+
+  elseif not confirmation_frame:IsShown() then
+    confirmation_frame:Show()
+  end
+end
+
 local function create_settings_frame()
   local settings_frame = CreateFrame("FRAME")
   settings_frame.name = "SK_FRAME"
-  settings_frame:SetSize(175, 100); -- width, height
+  settings_frame:SetSize(175, 135); -- width, height
   settings_frame:SetPoint("CENTER", UIParent, "CENTER")
   settings_frame:SetBackdrop(
     {
@@ -89,7 +125,15 @@ local function create_settings_frame()
   closeButton:SetPoint("TOPRIGHT", 0, 0)
   closeButton:SetSize(20,20)
 
-  local alert_check_button = create_check_button(settings_frame, -(settings_frame:GetWidth()/3), -(settings_frame:GetHeight()/4), "Alerts", core.ALERT);
+  local check_button_width = -(settings_frame:GetWidth()/3)
+  local check_button_height = -(settings_frame:GetHeight()/5)
+  local alert_check_button = create_check_button(
+    settings_frame, 
+    check_button_width, 
+    check_button_height, 
+    "Alerts", 
+    core.ALERT
+  );
   alert_check_button.tooltip = "Toggle printing private alerts to chat. \nE.g. what soul was used for the cast spell."
   alert_check_button:SetScript("OnClick", 
     function()
@@ -97,7 +141,13 @@ local function create_settings_frame()
     end
   );
 
-  local emote_check_button = create_check_button(settings_frame, -(settings_frame:GetWidth()/3), -(settings_frame:GetHeight()/4) - 20, "Emotes", core.EMOTE);
+  local emote_check_button = create_check_button(
+    settings_frame, 
+    check_button_width,
+    check_button_height - 25, 
+    "Emotes", 
+    core.EMOTE
+  );
   emote_check_button.tooltip = "Toggle displaying emotes when consuming player souls."
   emote_check_button:SetScript("OnClick", 
     function()
@@ -105,7 +155,12 @@ local function create_settings_frame()
     end
   );
 
-  local group_check_button = create_check_button(settings_frame, -(settings_frame:GetWidth()/3), -(settings_frame:GetHeight()/4) - 40, "Group Messaging", core.GROUP);
+  local group_check_button = create_check_button(
+    settings_frame, 
+    check_button_width,
+    check_button_height - 50, 
+    "Group Messaging", core.GROUP
+  );
   group_check_button.tooltip = "Toggle sending Soulstone/Summon messages to raid/party."
   group_check_button:SetScript("OnClick", 
     function()
@@ -113,9 +168,18 @@ local function create_settings_frame()
     end
   );
 
+  local reset_button = CreateFrame("Button", nil, settings_frame, "UIPanelButtonTemplate")
+  reset_button:SetSize(72, 24)
+  reset_button:SetText("Reset data")
+  reset_button:SetPoint("BOTTOM", 0, 5)
+  reset_button:SetScript(
+      "OnClick",
+      function()
+        confirmation_frame_handler()
+      end
+  )
+
   return settings_frame
 end
 core.create_settings_frame = create_settings_frame
 
--- TODO: If already shown dont open another window.. test by typing /sk multiple times
--- TODO: Add reset button || add a CLI argument? .. maybe with popup confirming decision
