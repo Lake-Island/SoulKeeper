@@ -1,6 +1,7 @@
 local _, core = ...
 
 shard_mapping = { {}, {}, {}, {}, {} }
+bank_shard_mapping = { {}, {}, {}, {}, {}, {}, {} }
 stone_mapping = {}
 logout_time = nil
 enable_alert = false
@@ -11,6 +12,7 @@ local shard_added = false
 local stone_deleted = false
 local shard_deleted = false
 local player_in_raid_instance = false
+local locked_bags = {}
 local locked_shards = {}
 local locked_stone_iid = {}
 local active_target_map = {}
@@ -490,12 +492,38 @@ local function unlock_shard(bag, slot)
 end
 
 
+local function unlock_bag(bag_num)
+  if #locked_bags == 0 then return end
+
+  -- swapping bags
+  local remove_index = 1
+  for index, locked_bag in pairs(locked_bags) do
+    if locked_bag.bag ~= bag_num then
+      remove_index = index
+      break
+    end
+  end
+
+  local removed_locked_bag = table.remove(locked_bags, remove_index)
+  shard_mapping[bag_num] = removed_locked_bag.data
+end
+
+
 local function lock_shard(bag, slot) 
   local locked_shard = {}
   locked_shard.bag = bag
   locked_shard.slot = slot
   locked_shard.data = get_shard(locked_shard.bag, locked_shard.slot)
   table.insert(locked_shards, locked_shard)
+end
+
+
+local function lock_bag(bag_num)
+  local locked_bag = {}
+  locked_bag.bag = bag_num
+  locked_bag.data = shard_mapping[bag_num]
+  shard_mapping[bag_num] = {}
+  table.insert(locked_bags, locked_bag)
 end
 
 
@@ -619,6 +647,17 @@ local function duplicate_spellcast_success(spell_id, curr_time)
 end
 
 
+local function bag_swap_handler(update_type, bag)
+  local real_bag_index = core.convert_bag_number_to_index(bag)
+  if bag ~= nil then
+    if update_type == core.BAG_LOCK then
+      lock_bag(real_bag_index+1)
+    elseif update_type == core.BAG_UNLOCK then
+      unlock_bag(real_bag_index+1)
+    end
+  end
+end
+
 ----------------------- EVENTS ----------------------------
 
 
@@ -692,7 +731,11 @@ bag_slot_lock_frame:RegisterEvent("ITEM_LOCKED")
 bag_slot_lock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag, slot = ...
-    if bag == nil or slot == nil then return end
+    if slot == nil then
+      bag_swap_handler(core.BAG_LOCK, bag)
+      return 
+    end
+
     local item_id = GetContainerItemID(bag, slot)
     if item_id == core.SOUL_SHARD_ID then
       lock_shard(bag+1, slot) 
@@ -707,7 +750,11 @@ bag_slot_unlock_frame:RegisterEvent("ITEM_UNLOCKED")
 bag_slot_unlock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag, slot = ...
-    if bag == nil or slot == nil then return end
+    if slot == nil then
+      bag_swap_handler(core.BAG_UNLOCK, bag)
+      return 
+    end
+
     local item_id = GetContainerItemID(bag, slot)
     bag = bag + 1
     if item_id == core.SOUL_SHARD_ID then

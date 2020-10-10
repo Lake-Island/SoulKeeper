@@ -76,6 +76,8 @@ core.SLOT_NULL  = 666
 core.MAX_BAG_INDEX = 4
 core.SOUL_BAG_TYPE = 3
 core.NORMAL_BAG_TYPE = 0
+core.BAG_LOCK = 1
+core.BAG_UNLOCK = 2
 
 core.SOUL_SHARD_ID = 6265
 core.RITUAL_OF_SUMM_SID = 698
@@ -503,3 +505,25 @@ local function random_emote()
   return core.PLAYER_QUOTES[math.random(#core.PLAYER_QUOTES)]
 end
 core.random_emote = random_emote
+
+
+local function is_bag_empty(bag)
+  if GetContainerNumFreeSlots(bag) == GetContainerNumSlots(bag) then
+    return true
+  end
+  return false
+end
+core.is_bag_empty = is_bag_empty
+
+
+--[[ 
+   When bags are locked, their values start from the second bag at 20
+   Return the real index of the corresonding bag.
+   e.g. bag 2 --> (20+1)%10 = 1 (its real index)
+]]--
+local function convert_bag_number_to_index(bag_num)
+  return (bag_num+1) % 10
+end
+core.convert_bag_number_to_index = convert_bag_number_to_index
+
+

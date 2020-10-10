@@ -182,4 +182,3 @@ local function create_settings_frame()
   return settings_frame
 end
 core.create_settings_frame = create_settings_frame
-
