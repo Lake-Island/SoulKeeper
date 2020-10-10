@@ -507,15 +507,6 @@ end
 core.random_emote = random_emote
 
 
-local function is_bag_empty(bag)
-  if GetContainerNumFreeSlots(bag) == GetContainerNumSlots(bag) then
-    return true
-  end
-  return false
-end
-core.is_bag_empty = is_bag_empty
-
-
 --[[ 
    When bags are locked, their values start from the second bag at 20
    Return the real index of the corresonding bag.

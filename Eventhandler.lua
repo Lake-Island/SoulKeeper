@@ -1,7 +1,6 @@
 local _, core = ...
 
 shard_mapping = { {}, {}, {}, {}, {} }
-bank_shard_mapping = { {}, {}, {}, {}, {}, {}, {} }
 stone_mapping = {}
 logout_time = nil
 enable_alert = false
