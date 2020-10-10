@@ -76,6 +76,8 @@ core.SLOT_NULL  = 666
 core.MAX_BAG_INDEX = 4
 core.SOUL_BAG_TYPE = 3
 core.NORMAL_BAG_TYPE = 0
+core.BAG_LOCK = 1
+core.BAG_UNLOCK = 2
 
 core.SOUL_SHARD_ID = 6265
 core.RITUAL_OF_SUMM_SID = 698
@@ -289,6 +291,7 @@ core.SPELL_NAME_TO_ITEM_ID = {
 
 local boss_id = {
     10184, -- Onyxia
+    -- MC
     12118, -- Lucifron
     12056, -- Geddon
     12057, -- Garr
@@ -299,6 +302,7 @@ local boss_id = {
     11502, -- Ragnaros
     12264, -- Shazzrah
     12098, -- Sulfuron
+    -- BWL
     12017, -- Broodlord
     14020, -- Chromaggus
     14601, -- Ebonroc
@@ -307,6 +311,7 @@ local boss_id = {
     11583, -- Nefarian
     12435, -- Razorgore
     13020, -- Vael
+    -- AQ40
     15516, -- Sartura
     15727, -- Cthun
     15276, -- Veklor
@@ -319,6 +324,7 @@ local boss_id = {
     15263, -- Skeram
     15544, -- Vem
     15299, -- Viscidus
+    -- NAXX
     15956, -- Anub'Rekhan
     15932, -- Gluth
     16060, -- Gothik
@@ -337,12 +343,27 @@ local boss_id = {
     16063, -- Zeliek
     15928, -- Thaddius
     16064, -- Korthazz
-    -- TODO: Add 20man boss id
+    -- ZG
     14517, -- jeklik
     14507, -- Venoxis
     14510, -- Mar'li
     11382, -- Mandokir
-    14834, -- hakkar
+    15082, -- Gri'lek
+    15083, -- Hazza'rah
+    15084, -- Renataki
+    15085, -- Wushoolay
+    15114, -- Gahzranka
+    14509, -- Thekal
+    14515, -- Arlokk
+    11380, -- Jin'do
+    14834, -- Hakkar
+    -- AQ20
+    15348, -- Kurinnaxx
+    15341, -- Rajaxx
+    15340, -- Moam
+    15370, -- Gorger
+    15369, -- Ayamiss
+    15339  -- Ossirian
 }
 
 local class_colors = {

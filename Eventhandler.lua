@@ -196,45 +196,6 @@ local function output_handler(mssg, data, color)
 end
 
 
---[[ 
- TODO: REMOVE ME ------------------------------------------------------
-  Sets shard data to nubmers for testting
-]]--
-local function set_shard_data()
-  local count = 1
-  shard_mapping = { {}, {}, {}, {}, {} }
-  for bag_num = 0, core.MAX_BAG_INDEX, 1 do
-    local num_bag_slots = GetContainerNumSlots(bag_num)
-    for slot_num = 1, num_bag_slots, 1 do
-      local curr_item_id = GetContainerItemID(bag_num, slot_num)
-      --curr_shard_slot = shard_mapping[bag_num+1][slot_num]
-      local curr_shard_slot = get_shard(bag_num+1,slot_num)
-      -- unmapped soul shard; map it.
-      if curr_item_id == core.SOUL_SHARD_ID then
-        local test_data = nil
-        if count == 1 then
-          test_data = { 
-            name="Guy", race="Human", class="Mage", location="somewhere",is_player = true, level = 60, is_boss = false, faction_color = core.ALLIANCE_BLUE , emote = "ahh"
-          }
-        elseif count == 2 then
-          test_data = { 
-            name="Krel", race="Undead", class="Warlock", location="somewhere", is_player = true, level = 60, is_boss = false, faction_color = core.HORDE_RED, emote = "I wasn't staring at your succubus, I swear!"
-          }
-        elseif count == 3 then
-          test_data = { name="Nefarian", location="somewhere", is_boss = true }
-        else
-          test_data = { name=string.format("shard_%d", count) , level = 666}
-        end
-        test_data.id = count
-        count = count + 1
-        set_shard(bag_num+1, slot_num, core.deep_copy(test_data))
-      end
-    end
-  end 
-end
--- TODO: REMOVE ME ------------------------------------------------------
-
-
 --[[ Return the bag and slot of next shard that will be consumed --]]
 local function find_next_shard_location()
   local next_shard = { bag = core.SLOT_NULL, slot = core.SLOT_NULL }
@@ -544,7 +505,7 @@ local function unlock_bag(bag_num)
   end
 
   local removed_locked_bag = table.remove(locked_bags, remove_index)
-  shard_mapping[removed_locked_bag.bag] = core.deep_copy(removed_locked_bag.data)
+  shard_mapping[bag_num] = removed_locked_bag.data
 end
 
 
@@ -560,7 +521,7 @@ end
 local function lock_bag(bag_num)
   local locked_bag = {}
   locked_bag.bag = bag_num
-  locked_bag.data = core.deep_copy(shard_mapping[bag_num])
+  locked_bag.data = shard_mapping[bag_num]
   shard_mapping[bag_num] = {}
   table.insert(locked_bags, locked_bag)
 end
@@ -686,6 +647,17 @@ local function duplicate_spellcast_success(spell_id, curr_time)
 end
 
 
+local function bag_swap_handler(update_type, bag)
+  local real_bag_index = core.convert_bag_number_to_index(bag)
+  if bag ~= nil then
+    if update_type == core.BAG_LOCK then
+      lock_bag(real_bag_index+1)
+    elseif update_type == core.BAG_UNLOCK then
+      unlock_bag(real_bag_index+1)
+    end
+  end
+end
+
 ----------------------- EVENTS ----------------------------
 
 
@@ -759,13 +731,8 @@ bag_slot_lock_frame:RegisterEvent("ITEM_LOCKED")
 bag_slot_lock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag, slot = ...
-
     if slot == nil then
-      local real_bag_index = core.convert_bag_number_to_index(bag)
-      if bag ~= nil and not core.is_bag_empty(real_bag_index) then
-        print("LOCKING BAG!") -- TODO: REMOVE ME!!
-        lock_bag(real_bag_index+1)
-      end
+      bag_swap_handler(core.BAG_LOCK, bag)
       return 
     end
 
@@ -783,13 +750,8 @@ bag_slot_unlock_frame:RegisterEvent("ITEM_UNLOCKED")
 bag_slot_unlock_frame:SetScript("OnEvent",
   function(self, event, ...)
     local bag, slot = ...
-
     if slot == nil then
-      if bag ~= nil then
-        print("UNLOCKING BAG") -- TODO: REMOVE ME
-        local real_bag_index = core.convert_bag_number_to_index(bag)
-        unlock_bag(real_bag_index+1)
-      end
+      bag_swap_handler(core.BAG_UNLOCK, bag)
       return 
     end
 
@@ -808,14 +770,10 @@ reload_frame:RegisterEvent("PLAYER_ENTERING_WORLD")
 reload_frame:SetScript("OnEvent", 
   function(self,event,...)
     set_default_shard_data()
-    -- set_shard_data() -- TODO: REMOVE ME!!
     reset_expired_stone_mapping()
     player_in_raid_instance = core.is_player_in_raid()
     active_target_map = {}
     update_next_open_bag_slot()
-
-    -- TODO: REMOVE ME!!!! (or just add for Krel :))
-    CastSpellByID(core.FIND_HERBS_SID)
   end)
 
 
@@ -949,17 +907,3 @@ local function set_emote(val)
   enable_emote = val
 end
 core.set_emote = set_emote
-
-
--- --------------------------TODO-------------------
--- TODO: Add reset data functionality
--- TODO: ADD 20 man raid boss ID's to core
--- TODO: More player quotes
---
--- --------- BUG -----------
--- TODO: Soulshards in bank
--- TODO: Swap bags
---
--- TODO: TESTING - - - - - - - - - - - - - - - -
--- ---> Enslave demon
--- ---> Creating a stone when bags are full; stone_created = true; will it stay true or will bag_update run and set to false?
