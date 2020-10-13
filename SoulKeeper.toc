@@ -1,11 +1,11 @@
 ## Interface: 11305
 ## Title: SoulKeeper
 ## Author: Krel
-## Version: 0.1
+## Version: 1.0
 ##SavedVariablesPerCharacter: shard_mapping, stone_mapping, logout_time, enable_group_messages, enable_alert, enable_emote
 
 Core.lua
 Tooltip.lua
 Eventhandler.lua
-Ui.lua
+UI.lua
 Main.lua
