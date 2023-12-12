@@ -62,11 +62,17 @@ local killed_target = {
 
 
 local function get_shard(bag, slot)
+  if (shard_mapping[bag] == nil) then
+    return nil
+  end
   return shard_mapping[bag][slot]
 end
 
 
 local function set_shard(bag, slot, val)
+  if (shard_mapping[bag] == nil) then
+    shard_mapping[bag] = {}
+  end
   shard_mapping[bag][slot] = val
 end
 
@@ -167,9 +173,9 @@ end
 local function set_default_shard_data()
   local curr_id = -3
   for bag_num = 0, core.MAX_BAG_INDEX, 1 do
-    local num_bag_slots = GetContainerNumSlots(bag_num)
+    local num_bag_slots = C_Container.GetContainerNumSlots(bag_num)
     for slot_num = 1, num_bag_slots, 1 do
-      local curr_item_id = GetContainerItemID(bag_num, slot_num)
+      local curr_item_id = C_Container.GetContainerItemID(bag_num, slot_num)
       local curr_shard_slot = get_shard(bag_num+1, slot_num)
       if curr_item_id == core.SOUL_SHARD_ID and curr_shard_slot == nil then
         local killed_target_copy = core.deep_copy(core.DEFAULT_KILLED_TARGET_DATA)
@@ -229,9 +235,9 @@ local function update_next_open_bag_slot()
     local open_soul_bag = {}
     local open_normal_bag = {}
     for bag_num = 0, core.MAX_BAG_INDEX, 1 do
-      local num_free_slots, bag_type = GetContainerNumFreeSlots(bag_num);
+      local num_free_slots, bag_type = C_Container.GetContainerNumFreeSlots(bag_num);
       if num_free_slots > 0 then
-        local free_slots = GetContainerFreeSlots(bag_num)
+        local free_slots = C_Container.GetContainerFreeSlots(bag_num)
 
         -- save bag number and first open index if not yet found for bag type
         if bag_type == core.SOUL_BAG_TYPE and next(open_soul_bag) == nil then
@@ -421,7 +427,7 @@ local function get_last_open_slot_data()
   local bag = next_open_shard_slot['bag_number']
   local slot = next_open_shard_slot['open_index']
   if bag ~= nil and slot ~= nil then 
-    local item_id = GetContainerItemID(bag, slot)
+    local item_id = C_Container.GetContainerItemID(bag, slot)
     return bag+1, slot, item_id    -- bag+1 for indexing at 1, not 0
   end
 
@@ -735,7 +741,7 @@ bag_slot_lock_frame:SetScript("OnEvent",
       return 
     end
 
-    local item_id = GetContainerItemID(bag, slot)
+    local item_id = C_Container.GetContainerItemID(bag, slot)
     if item_id == core.SOUL_SHARD_ID then
       lock_shard(bag+1, slot) 
     elseif core.table_contains(core.STONE_IID_TO_NAME, item_id) then
@@ -754,7 +760,7 @@ bag_slot_unlock_frame:SetScript("OnEvent",
       return 
     end
 
-    local item_id = GetContainerItemID(bag, slot)
+    local item_id = C_Container.GetContainerItemID(bag, slot)
     bag = bag + 1
     if item_id == core.SOUL_SHARD_ID then
       unlock_shard(bag, slot)

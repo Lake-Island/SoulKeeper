@@ -89,7 +89,7 @@ local function confirmation_frame_handler()
 end
 
 local function create_settings_frame()
-  local settings_frame = CreateFrame("FRAME")
+  local settings_frame = CreateFrame("FRAME", nil, PARENT_FRAME, BackdropTemplateMixin and "BackdropTemplate")
   settings_frame.name = "SK_FRAME"
   settings_frame:SetSize(175, 135); -- width, height
   settings_frame:SetPoint("CENTER", UIParent, "CENTER")
